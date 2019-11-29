@@ -4,59 +4,73 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/kardianos/service"
 )
 
 const appName = "hogate"
 
-const configFileParameter = "configFile"
-
 func usage() {
 	fmt.Printf(
 		`Home HTTP Gateway service.
 
-Usage: [Options]
+Usage: [Action] [Options]
+
+Actions:
+
+install [option]
+  Install the service
+uninstall
+  Uninstall the service
+start
+  Start the service
+stop
+  Stop the service
+run [option]
+  Execut as console application
 
 Options:
 -h, --help
-  Print this message.
--c, --config <file path>
-  Path to configuration yaml file. 
+  Print this message
+-c, --config <file name>
+  Path to configuration yaml file. Works only for install and run actions.
   Default: %v
--s, --service <action>
-  Control the service. Action could be any of:
-  install, uninstall, start, stop, restart, run
 `,
 		defaultConfigFile(),
 	)
 }
 
-func defaultConfigFile() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return filepath.Join(homeDir, appName, appName+".yml")
-}
-
 type application struct {
 	configFile string
 	logger     service.Logger
+	stop       func()
 }
 
 func (app *application) run() {
 	if app.configFile == "" {
-		app.configFile, _ = getServiceParameter(appName, configFileParameter)
-		if app.configFile == "" {
-			app.configFile = defaultConfigFile()
-		}
+		app.configFile = defaultConfigFile()
 	}
 	app.logger.Info(app.configFile)
+	app.stop()
 }
 
 func (app *application) Start(s service.Service) error {
+	if app.configFile == "" {
+		argc := len(os.Args)
+		for i := 1; i < argc; i++ {
+			arg := os.Args[i]
+			switch arg {
+			case "-c", "--config":
+				if i++; i < argc {
+					app.configFile = os.Args[i]
+				}
+				break
+			}
+		}
+	}
+	app.stop = func() {
+		s.Stop()
+	}
 	go app.run()
 	return nil
 }
@@ -66,14 +80,41 @@ func (app *application) Stop(s service.Service) error {
 }
 
 func main() {
+	app := &application{}
+	action := ""
+
+	argc := len(os.Args)
+	for i := 1; i < argc; i++ {
+		arg := os.Args[i]
+		switch arg {
+		case "-h", "--help":
+			if service.Interactive() {
+				usage()
+				os.Exit(100)
+			}
+		case "-c", "--config":
+			if i++; i < argc {
+				app.configFile = os.Args[i]
+			}
+		default:
+			if action == "" {
+				action = arg
+			}
+		}
+	}
+
+	var arguments []string
+	if app.configFile != "" {
+		arguments = []string{"--config", app.configFile}
+	}
 
 	svcConfig := &service.Config{
 		Name:        "hogate",
 		DisplayName: "Home HTTP Gateway",
 		Description: "Home HTTP Gateway.",
+		Arguments:   arguments,
 	}
 
-	app := &application{}
 	svc, err := service.New(app, svcConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -83,56 +124,14 @@ func main() {
 		log.Fatal(err)
 	}
 	if service.Interactive() {
-		var action string
-
-		argc := len(os.Args)
-		for i := 0; i < argc; i++ {
-			arg := os.Args[i]
-			switch arg {
-			case "-h", "--help":
-				usage()
-				os.Exit(100)
-			case "-c", "--config":
-				if i++; i < argc {
-					app.configFile = os.Args[i]
-				}
-			case "-s", "--service":
-				if i++; i < argc {
-					action = os.Args[i]
-				}
-			}
-		}
-
-		saveParameters := true
-		switch action {
-		case "install":
-			err = svc.Install()
-		case "uninstall":
-			saveParameters = false
-			err = svc.Uninstall()
-		case "start":
-			err = svc.Start()
-		case "stop":
-			err = svc.Stop()
-		case "restart":
-			err = svc.Restart()
-		case "run":
-			saveParameters = false
+		if action == "run" {
 			app.run()
-			return
-		}
-
-		if err != nil {
-			log.Println(err)
-		}
-
-		if saveParameters && app.configFile != "" {
-			err := setServiceParameter(svcConfig.Name, configFileParameter, app.configFile)
+		} else {
+			err = service.Control(svc, action)
 			if err != nil {
-				fmt.Printf("Path to configuration file wasn't updated: %v", err)
+				fmt.Println(err)
 			}
 		}
-
 		return
 	}
 	err = svc.Run()
