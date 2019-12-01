@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"sync"
 
 	"github.com/kardianos/service"
 )
@@ -41,54 +43,23 @@ Options:
 }
 
 type application struct {
-	configFile string
-	logger     service.Logger
-	stop       func()
+	configFile  string
+	logger      service.Logger
+	stopService func()
+	stopping    bool
+	stopped     sync.Mutex
+
+	config
+	httpServer
 }
 
-func (app *application) run() {
-	if app.configFile == "" {
-		app.configFile = defaultConfigFile()
-	}
-	app.logger.Info(app.configFile)
-	app.stop()
-}
-
-func (app *application) Start(s service.Service) error {
-	if app.configFile == "" {
-		argc := len(os.Args)
-		for i := 1; i < argc; i++ {
-			arg := os.Args[i]
-			switch arg {
-			case "-c", "--config":
-				if i++; i < argc {
-					app.configFile = os.Args[i]
-				}
-				break
-			}
-		}
-	}
-	app.stop = func() {
-		s.Stop()
-	}
-	go app.run()
-	return nil
-}
-
-func (app *application) Stop(s service.Service) error {
-	return nil
-}
-
-func main() {
-	app := &application{}
-	action := ""
-
+func (app *application) parseCommandLine(interactive bool) (action string) {
 	argc := len(os.Args)
 	for i := 1; i < argc; i++ {
 		arg := os.Args[i]
 		switch arg {
 		case "-h", "--help":
-			if service.Interactive() {
+			if interactive {
 				usage()
 				os.Exit(100)
 			}
@@ -102,6 +73,47 @@ func main() {
 			}
 		}
 	}
+	return
+}
+
+func (app *application) run() {
+	app.logger.Info(appName + " started with configuration file " + app.configFile)
+
+	err := app.config.parse(app.configFile)
+	if err == nil && !app.stopping {
+		err = app.httpServer.start() // blocking
+	}
+
+	if err != nil {
+		app.logger.Error(err)
+	}
+
+	if !app.stopping {
+		app.stopService()
+	}
+	app.logger.Info(appName + " stopped")
+	app.stopped.Unlock()
+}
+
+func (app *application) Start(s service.Service) error {
+	if app.configFile == "" {
+		app.parseCommandLine(false)
+		if app.configFile == "" {
+			app.configFile = defaultConfigFile()
+		}
+	}
+	go app.run()
+	return nil
+}
+
+func (app *application) Stop(s service.Service) error {
+	app.stopping = true
+	return app.httpServer.stop()
+}
+
+func main() {
+	app := &application{}
+	action := app.parseCommandLine(service.Interactive())
 
 	var arguments []string
 	if app.configFile != "" {
@@ -123,9 +135,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	app.stopped.Lock()
 	if service.Interactive() {
 		if action == "run" {
-			app.run()
+			app.stopService = func() {}
+			sigc := make(chan os.Signal, 1)
+			signal.Notify(sigc, os.Interrupt)
+			go func() {
+				<-sigc
+				if err := app.Stop(svc); err != nil {
+					app.logger.Error(err)
+					os.Exit(1)
+				}
+			}()
+			err = app.Start(svc)
+			if err != nil {
+				app.logger.Error(err)
+				os.Exit(1)
+			}
+			app.stopped.Lock()
+			os.Exit(0)
 		} else {
 			err = service.Control(svc, action)
 			if err != nil {
@@ -133,6 +162,9 @@ func main() {
 			}
 		}
 		return
+	}
+	app.stopService = func() {
+		svc.Stop()
 	}
 	err = svc.Run()
 	if err != nil {
