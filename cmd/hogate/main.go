@@ -49,8 +49,17 @@ type application struct {
 	stopping    bool
 	stopped     sync.Mutex
 
-	config
 	httpServer
+}
+
+// Error logger writer
+func (app *application) Write(p []byte) (n int, err error) {
+	err = app.logger.Error(string(p))
+	if err != nil {
+		return
+	}
+	n = len(p)
+	return
 }
 
 func (app *application) parseCommandLine(interactive bool) (action string) {
@@ -79,9 +88,11 @@ func (app *application) parseCommandLine(interactive bool) (action string) {
 func (app *application) run() {
 	app.logger.Info(appName + " started with configuration file " + app.configFile)
 
-	err := app.config.parse(app.configFile)
+	errorLog := log.New(app, "", 0)
+
+	err := loadConfig(app.configFile)
 	if err == nil && !app.stopping {
-		err = app.httpServer.start() // blocking
+		err = app.httpServer.start(errorLog) // blocking
 	}
 
 	if err != nil {
@@ -121,7 +132,7 @@ func main() {
 	}
 
 	svcConfig := &service.Config{
-		Name:        "hogate",
+		Name:        appName,
 		DisplayName: "Home HTTP Gateway",
 		Description: "Home HTTP Gateway.",
 		Arguments:   arguments,
