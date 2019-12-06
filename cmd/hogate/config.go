@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -21,16 +22,21 @@ type HttpServerConfig struct {
 	WriteTimeout      int `yaml:"writeTimeout,omitempty"`      // milliseconds
 	IdleTimeout       int `yaml:"idleTimeout,omitempty"`       // milliseconds
 	MaxHeaderBytes    int `yaml:"maxHeaderBytes,omitempty"`
-	TLSFiles          `yaml:"tlsFiles,omitempty"`
-	TLSAcme           `yaml:"tlsAcme,omitempty"`
+	*TLSFiles         `yaml:"tlsFiles,omitempty"`
+	*TLSAcme          `yaml:"tlsAcme,omitempty"`
 }
 
 type TLSFiles struct {
-	Certificate string `yaml:"certificate,omitempty"`
-	Key         string `yaml:"key,omitempty"`
+	Certificate string `yaml:"certificate"`
+	Key         string `yaml:"key"`
 }
 
 type TLSAcme struct {
+	Email         string   `yaml:"email,omitempty"`        // contact email address
+	HostWhitelist []string `yaml:"hostWhitelist"`          // allowed host names
+	RenewBefore   int      `yaml:"renewBefore,omitempty"`  // renew days before expiration, default is 30 days
+	CacheDir      string   `yaml:"cacheDir"`               // path to the directory
+	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
 
 func loadConfig(cfgFile string) error {
@@ -42,22 +48,71 @@ func loadConfig(cfgFile string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to parse configuration file: %v", err)
 	}
-	validate := []func() error{
+	var errStr strings.Builder
+	validate := []func(sb strings.Builder){
 		validateHttpServerConfig,
 	}
 	for _, v := range validate {
-		err = v()
-		if err != nil {
-			return err
-		}
+		v(errStr)
 	}
-
+	if errStr.Len() > 0 {
+		return fmt.Errorf("The configuration file is invalid:%v", errStr)
+	}
 	return nil
 }
 
-func validateHttpServerConfig() error {
+func validateHttpServerConfig(errStr strings.Builder) {
 	if config.HttpServer.Port < 1 || config.HttpServer.Port > 65535 {
-		return fmt.Errorf("httpServer.port must be between 1 and 65535.")
+		errStr.WriteString(NewLine + "httpServer.port must be between 1 and 65535.")
 	}
-	return nil
+	if config.HttpServer.MaxConnections < 0 {
+		errStr.WriteString(NewLine + "httpServer.maxConnections must be greater or equal to 0.")
+	}
+	if config.HttpServer.ReadTimeout < 0 {
+		errStr.WriteString(NewLine + "httpServer.readTimeout must be greater or equal to 0.")
+	}
+	if config.HttpServer.ReadHeaderTimeout < 0 {
+		errStr.WriteString(NewLine + "httpServer.readHeaderTimeout must be greater or equal to 0.")
+	}
+	if config.HttpServer.WriteTimeout < 0 {
+		errStr.WriteString(NewLine + "httpServer.writeTimeout must be greater or equal to 0.")
+	}
+	if config.HttpServer.IdleTimeout < 0 {
+		errStr.WriteString(NewLine + "httpServer.idleTimeout must be greater or equal to 0.")
+	}
+	if config.HttpServer.MaxHeaderBytes < 0 {
+		errStr.WriteString(NewLine + "httpServer.maxHeaderBytes must be greater or equal to 0.")
+	}
+
+	if config.HttpServer.TLSFiles != nil {
+		if config.HttpServer.TLSFiles.Certificate == "" {
+			errStr.WriteString(NewLine + "httpServer.TLSFiles.certificate must be specified.")
+		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Certificate); err != nil {
+			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.certificate path: %v", NewLine, err))
+		}
+		if config.HttpServer.TLSFiles.Key == "" {
+			errStr.WriteString(NewLine + "httpServer.TLSFiles.key must be specified.")
+		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Key); err != nil {
+			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.key path: %v", NewLine, err))
+		}
+	}
+
+	if config.HttpServer.TLSAcme != nil {
+		if len(config.HttpServer.TLSAcme.HostWhitelist) <= 0 {
+			errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not be empty.")
+		} else {
+			for _, v := range config.HttpServer.TLSAcme.HostWhitelist {
+				if v == "" {
+					errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not contain empty item.")
+					break
+				}
+			}
+		}
+		if config.HttpServer.TLSAcme.RenewBefore < 0 {
+			errStr.WriteString(NewLine + "httpServer.TLSAcme.renewBefore must be greater or equal to 0.")
+		}
+		if config.HttpServer.TLSAcme.CacheDir == "" {
+			errStr.WriteString(NewLine + "httpServer.TLSAcme.cacheDir cannot be empty.")
+		}
+	}
 }
