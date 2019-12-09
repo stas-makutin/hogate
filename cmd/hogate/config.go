@@ -15,15 +15,25 @@ type Config struct {
 }
 
 type HttpServerConfig struct {
-	Port              int `yaml:"port"`
-	MaxConnections    int `yaml:"maxConnections,omitempty"`
-	ReadTimeout       int `yaml:"readTimeout,omitempty"`       // milliseconds
-	ReadHeaderTimeout int `yaml:"readHeaderTimeout,omitempty"` // milliseconds
-	WriteTimeout      int `yaml:"writeTimeout,omitempty"`      // milliseconds
-	IdleTimeout       int `yaml:"idleTimeout,omitempty"`       // milliseconds
-	MaxHeaderBytes    int `yaml:"maxHeaderBytes,omitempty"`
+	Port              int            `yaml:"port"`
+	MaxConnections    uint           `yaml:"maxConnections,omitempty"`
+	ReadTimeout       uint           `yaml:"readTimeout,omitempty"`       // milliseconds
+	ReadHeaderTimeout uint           `yaml:"readHeaderTimeout,omitempty"` // milliseconds
+	WriteTimeout      uint           `yaml:"writeTimeout,omitempty"`      // milliseconds
+	IdleTimeout       uint           `yaml:"idleTimeout,omitempty"`       // milliseconds
+	MaxHeaderBytes    uint32         `yaml:"maxHeaderBytes,omitempty"`
+	Log               *HttpServerLog `yaml:"log,omitempty"`
 	*TLSFiles         `yaml:"tlsFiles,omitempty"`
 	*TLSAcme          `yaml:"tlsAcme,omitempty"`
+}
+
+type HttpServerLog struct {
+	Dir      string      `yaml:"dir,omitempty"`
+	File     string      `yaml:"file,omitempty"`
+	FileMode os.FileMode `yaml:"fileMode,omitempty"`
+	MaxSize  string      `yaml:"maxSize,omitempty"`
+	MaxAge   string      `yaml:"maxAge,omitempty"` // seconds
+	Backups  uint32      `yaml:"backups,omitempty"`
 }
 
 type TLSFiles struct {
@@ -34,7 +44,7 @@ type TLSFiles struct {
 type TLSAcme struct {
 	Email         string   `yaml:"email,omitempty"`        // contact email address
 	HostWhitelist []string `yaml:"hostWhitelist"`          // allowed host names
-	RenewBefore   int      `yaml:"renewBefore,omitempty"`  // renew days before expiration, default is 30 days
+	RenewBefore   uint32   `yaml:"renewBefore,omitempty"`  // renew days before expiration, default is 30 days
 	CacheDir      string   `yaml:"cacheDir"`               // path to the directory
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
@@ -65,23 +75,21 @@ func validateHttpServerConfig(errStr strings.Builder) {
 	if config.HttpServer.Port < 1 || config.HttpServer.Port > 65535 {
 		errStr.WriteString(NewLine + "httpServer.port must be between 1 and 65535.")
 	}
-	if config.HttpServer.MaxConnections < 0 {
-		errStr.WriteString(NewLine + "httpServer.maxConnections must be greater or equal to 0.")
-	}
-	if config.HttpServer.ReadTimeout < 0 {
-		errStr.WriteString(NewLine + "httpServer.readTimeout must be greater or equal to 0.")
-	}
-	if config.HttpServer.ReadHeaderTimeout < 0 {
-		errStr.WriteString(NewLine + "httpServer.readHeaderTimeout must be greater or equal to 0.")
-	}
-	if config.HttpServer.WriteTimeout < 0 {
-		errStr.WriteString(NewLine + "httpServer.writeTimeout must be greater or equal to 0.")
-	}
-	if config.HttpServer.IdleTimeout < 0 {
-		errStr.WriteString(NewLine + "httpServer.idleTimeout must be greater or equal to 0.")
-	}
-	if config.HttpServer.MaxHeaderBytes < 0 {
-		errStr.WriteString(NewLine + "httpServer.maxHeaderBytes must be greater or equal to 0.")
+
+	if config.HttpServer.Log != nil {
+		if config.HttpServer.Log.Dir == "" {
+			errStr.WriteString(NewLine + "httpServer.log.dir is required.")
+		}
+		if config.HttpServer.Log.File == "" {
+			config.HttpServer.Log.File = appName + ".log"
+		}
+		if config.HttpServer.Log.FileMode == 0 {
+			config.HttpServer.Log.FileMode = 0644
+		}
+		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.FileMode)
+		if err != nil {
+			errStr.WriteString(NewLine + "httpServer.log.dir is not valid.")
+		}
 	}
 
 	if config.HttpServer.TLSFiles != nil {
@@ -107,9 +115,6 @@ func validateHttpServerConfig(errStr strings.Builder) {
 					break
 				}
 			}
-		}
-		if config.HttpServer.TLSAcme.RenewBefore < 0 {
-			errStr.WriteString(NewLine + "httpServer.TLSAcme.renewBefore must be greater or equal to 0.")
 		}
 		if config.HttpServer.TLSAcme.CacheDir == "" {
 			errStr.WriteString(NewLine + "httpServer.TLSAcme.cacheDir cannot be empty.")
