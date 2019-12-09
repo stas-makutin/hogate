@@ -71,7 +71,7 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 	router := http.NewServeMux()
 
 	router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "test")
+		//fmt.Fprintf(w, "test")
 	}))
 
 	var handler http.Handler = router
@@ -142,7 +142,7 @@ func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
 			defer func() {
 				record := []string{
 					start.Format("2006-01-02T15:04:05"),
-					strconv.FormatInt(int64(time.Now().Local().Sub(start)), 10),
+					strconv.FormatInt(int64(time.Now().Local().Sub(start)/time.Millisecond), 10),
 					r.RemoteAddr,
 					r.Host,
 					r.Proto,
@@ -165,11 +165,9 @@ ef ged`, // message
 				logCfg := config.HttpServer.Log
 				logFile := filepath.Join(logCfg.Dir, logCfg.File)
 
-				/*
-					if logCfg.Backups > 0 && (logCfg.MaxSize > 0 || logCfg.MaxAge > 0) { // log file rotation
+				if logCfg.Backups > 0 && (logCfg.MaxSizeBytes > 0 || logCfg.MaxAgeDuration > 0) { // log file rotation
 
-					}
-				*/
+				}
 
 				var f *os.File
 				var err error

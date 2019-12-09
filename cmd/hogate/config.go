@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -28,12 +29,15 @@ type HttpServerConfig struct {
 }
 
 type HttpServerLog struct {
-	Dir      string      `yaml:"dir,omitempty"`
-	File     string      `yaml:"file,omitempty"`
-	FileMode os.FileMode `yaml:"fileMode,omitempty"`
-	MaxSize  string      `yaml:"maxSize,omitempty"`
-	MaxAge   string      `yaml:"maxAge,omitempty"` // seconds
-	Backups  uint32      `yaml:"backups,omitempty"`
+	Dir            string        `yaml:"dir,omitempty"`
+	File           string        `yaml:"file,omitempty"`
+	DirMode        os.FileMode   `yaml:"dirMode,omitempty"`
+	FileMode       os.FileMode   `yaml:"fileMode,omitempty"`
+	MaxSize        string        `yaml:"maxSize,omitempty"`
+	MaxAge         string        `yaml:"maxAge,omitempty"` // seconds
+	Backups        uint32        `yaml:"backups,omitempty"`
+	MaxSizeBytes   int64         `yaml:"-"`
+	MaxAgeDuration time.Duration `yaml:"-"`
 }
 
 type TLSFiles struct {
@@ -83,13 +87,34 @@ func validateHttpServerConfig(errStr strings.Builder) {
 		if config.HttpServer.Log.File == "" {
 			config.HttpServer.Log.File = appName + ".log"
 		}
+		if config.HttpServer.Log.DirMode == 0 {
+			config.HttpServer.Log.DirMode = 0755
+		}
 		if config.HttpServer.Log.FileMode == 0 {
 			config.HttpServer.Log.FileMode = 0644
 		}
-		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.FileMode)
+		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.DirMode)
 		if err != nil {
 			errStr.WriteString(NewLine + "httpServer.log.dir is not valid.")
 		}
+
+		size, err := parseSizeString(config.HttpServer.Log.MaxSize)
+		if err == nil && size < 0 {
+			err = fmt.Errorf("negative value not allowed.")
+		}
+		if err != nil {
+			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxSize is not valid: %v", NewLine, err))
+		}
+		config.HttpServer.Log.MaxSizeBytes = size
+
+		duration, err := parseTimeDuration(config.HttpServer.Log.MaxAge)
+		if err == nil && duration < 0 {
+			err = fmt.Errorf("negative value not allowed.")
+		}
+		if err != nil {
+			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxAge is not valid: %v", NewLine, err))
+		}
+		config.HttpServer.Log.MaxAgeDuration = duration
 	}
 
 	if config.HttpServer.TLSFiles != nil {
