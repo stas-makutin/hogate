@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ type httpServer struct {
 	server *http.Server
 	lock   sync.Mutex
 }
+
+const httpLogMessage = "logMessage"
 
 func (srv *httpServer) start(errorLog *log.Logger) error {
 	srv.lock.Lock()
@@ -71,7 +74,7 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 	router := http.NewServeMux()
 
 	router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//fmt.Fprintf(w, "test")
+		fmt.Fprintf(w, "test")
 	}))
 
 	var handler http.Handler = router
@@ -134,11 +137,22 @@ func (w *logResponseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
+func httpAppendToLog(r *http.Request, message string) {
+	if builder, ok := r.Context().Value(httpLogMessage).(*strings.Builder); ok {
+		if builder.Len() > 0 {
+			builder.WriteString("\n")
+		}
+		builder.WriteString(message)
+	}
+}
+
 func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now().Local()
 			lrw := &logResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+			var bld strings.Builder
+			ctx := context.WithValue(r.Context(), httpLogMessage, &bld)
 			defer func() {
 				record := []string{
 					start.Format("2006-01-02T15:04:05"),
@@ -152,9 +166,7 @@ func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
 					r.Header.Get("X-Request-Id"),
 					strconv.Itoa(lrw.statusCode),
 					strconv.FormatInt(lrw.contentLength, 10),
-					`aaa
-bab cd
-ef ged`, // message
+					bld.String(),
 				}
 
 				var b bytes.Buffer
@@ -186,7 +198,7 @@ ef ged`, // message
 					errorLog.Printf("Unable to log HTTP request:%v%v%vreason: %v", NewLine, string(b.Bytes()), NewLine, err)
 				}
 			}()
-			next.ServeHTTP(lrw, r)
+			next.ServeHTTP(lrw, r.WithContext(ctx))
 		})
 	}
 }
