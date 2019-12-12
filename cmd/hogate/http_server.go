@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/acme"
@@ -178,9 +177,7 @@ func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
 				logCfg := config.HttpServer.Log
 				logFile := filepath.Join(logCfg.Dir, logCfg.File)
 
-				if logCfg.Backups > 0 && (logCfg.MaxSizeBytes > 0 || logCfg.MaxAgeDuration > 0) { // log file rotation
-					logRotate.rotate(logFile, errorLog)
-				}
+				logRotate.rotate(logFile, errorLog)
 
 				var f *os.File
 				var err error
@@ -201,81 +198,5 @@ func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
 			}()
 			next.ServeHTTP(lrw, r.WithContext(ctx))
 		})
-	}
-}
-
-type logRotation struct {
-	lock uint32
-}
-
-var logRotate logRotation
-
-func (r *logRotation) rotate(logFile string, errorLog *log.Logger) {
-
-	if atomic.SwapUint32(&r.lock, 1) != 0 {
-		return
-	}
-
-	rotate := false
-	logCfg := config.HttpServer.Log
-	statusFile := logFile + ".status"
-
-	fi, err := os.Stat(logFile)
-	if err == nil {
-		if logCfg.MaxAgeDuration > 0 {
-			sfi, err := os.Stat(statusFile)
-			if err != nil {
-				if os.IsNotExist(err) {
-					_, err = os.OpenFile(statusFile, os.O_CREATE, logCfg.FileMode)
-				}
-				if err != nil {
-					errorLog.Printf("HTTP log rotation status file error: %v", err)
-				}
-			} else if time.Now().Sub(sfi.ModTime()) > logCfg.MaxAgeDuration {
-				rotate = true
-			}
-		}
-		if logCfg.MaxSizeBytes > 0 && fi.Size() > logCfg.MaxSizeBytes {
-			rotate = true
-		}
-	}
-
-	if rotate {
-		go func() {
-			defer atomic.SwapUint32(&r.lock, 0)
-			if logCfg.MaxAgeDuration > 0 {
-				// touch status file
-				// change it once https://github.com/golang/go/issues/32558 will be fixed
-				defer func() {
-					now := time.Now()
-					if err := os.Chtimes(statusFile, now, now); err != nil {
-						errorLog.Printf("HTTP log rotation status file touch error: %v", err)
-					}
-				}()
-			}
-
-			// rename log file
-
-			backupFile := logFile + ".backup"
-			for i := 0; i < 6; i++ {
-				err = os.Rename(logFile, backupFile)
-				if err == nil || os.IsNotExist(err) {
-					break
-				}
-				time.Sleep(50 * time.Millisecond)
-			}
-			if err != nil {
-				if !os.IsNotExist(err) {
-					errorLog.Printf("HTTP log rotation backup file error: %v", err)
-				}
-				return
-			}
-
-			// delete old backup files
-
-			// rename/archive backup file
-		}()
-	} else {
-		atomic.SwapUint32(&r.lock, 0)
 	}
 }

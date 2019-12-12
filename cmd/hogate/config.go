@@ -36,6 +36,9 @@ type HttpServerLog struct {
 	MaxSize        string        `yaml:"maxSize,omitempty"`
 	MaxAge         string        `yaml:"maxAge,omitempty"` // seconds
 	Backups        uint32        `yaml:"backups,omitempty"`
+	BackupDays     uint32        `yaml:"backupDays,omitempty"`
+	BackupsPerDay  uint32        `yaml:"backupsPerDay,omitempty"`
+	Archive        string        `yaml:"archive,omitempty"`
 	MaxSizeBytes   int64         `yaml:"-"`
 	MaxAgeDuration time.Duration `yaml:"-"`
 }
@@ -115,6 +118,11 @@ func validateHttpServerConfig(errStr strings.Builder) {
 			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxAge is not valid: %v", NewLine, err))
 		}
 		config.HttpServer.Log.MaxAgeDuration = duration
+
+		config.HttpServer.Log.Archive = strings.ToLower(config.HttpServer.Log.Archive)
+		if !(config.HttpServer.Log.Archive == "" || config.HttpServer.Log.Archive == "zip") {
+			errStr.WriteString(NewLine + "httpServer.log.archive could be either empty or has \"zip\" value")
+		}
 	}
 
 	if config.HttpServer.TLSFiles != nil {
