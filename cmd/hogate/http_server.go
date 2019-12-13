@@ -28,19 +28,17 @@ type httpServer struct {
 
 const httpLogMessage = "logMessage"
 
-func (srv *httpServer) start(errorLog *log.Logger) error {
+func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tlsKeyFile string) {
 	srv.lock.Lock()
 	defer srv.lock.Unlock()
 
-	useTLS := false
-	tlsCertFile := ""
-	tlsKeyFile := ""
 	var acmeManager *autocert.Manager
 	var tlsConfig *tls.Config
 
 	if config.HttpServer.TLSFiles != nil {
 		tlsCertFile = config.HttpServer.TLSFiles.Certificate
 		tlsKeyFile = config.HttpServer.TLSFiles.Key
+		useTLS = true
 	} else if config.HttpServer.TLSAcme != nil {
 		var acmeClient *acme.Client
 		if config.HttpServer.TLSAcme.DirectoryURL != "" {
@@ -57,18 +55,7 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 			Client:      acmeClient,
 		}
 		tlsConfig = acmeManager.TLSConfig()
-	}
-
-	// create TCP listener
-	netListener, err := net.Listen("tcp", ":"+strconv.Itoa(int(config.HttpServer.Port)))
-	if err != nil {
-		return fmt.Errorf("Listen on %v port failed: %v", config.HttpServer.Port, err)
-	}
-	defer netListener.Close()
-
-	// apply concurrent connections limit
-	if config.HttpServer.MaxConnections > 0 {
-		netListener = netutil.LimitListener(netListener, int(config.HttpServer.MaxConnections))
+		useTLS = true
 	}
 
 	router := http.NewServeMux()
@@ -93,13 +80,32 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 		TLSConfig:         tlsConfig,
 	}
 
+	return
+}
+
+func (srv *httpServer) start(errorLog *log.Logger) error {
+
+	useTLS, tlsCertFile, tlsKeyFile := srv.init(errorLog)
+
+	// create TCP listener
+	netListener, err := net.Listen("tcp", ":"+strconv.Itoa(int(config.HttpServer.Port)))
+	if err != nil {
+		return fmt.Errorf("Listen on %v port failed: %v", config.HttpServer.Port, err)
+	}
+	defer netListener.Close()
+
+	// apply concurrent connections limit
+	if config.HttpServer.MaxConnections > 0 {
+		netListener = netutil.LimitListener(netListener, int(config.HttpServer.MaxConnections))
+	}
+
 	if useTLS {
 		err = srv.server.ServeTLS(netListener, tlsCertFile, tlsKeyFile)
 	} else {
 		err = srv.server.Serve(netListener)
 	}
 
-	if err != nil {
+	if err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("Failed to start HTTP server: %v", err)
 	}
 	return nil

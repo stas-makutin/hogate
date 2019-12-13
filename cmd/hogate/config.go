@@ -37,7 +37,6 @@ type HttpServerLog struct {
 	MaxAge         string        `yaml:"maxAge,omitempty"` // seconds
 	Backups        uint32        `yaml:"backups,omitempty"`
 	BackupDays     uint32        `yaml:"backupDays,omitempty"`
-	BackupsPerDay  uint32        `yaml:"backupsPerDay,omitempty"`
 	Archive        string        `yaml:"archive,omitempty"`
 	MaxSizeBytes   int64         `yaml:"-"`
 	MaxAgeDuration time.Duration `yaml:"-"`

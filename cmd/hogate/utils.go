@@ -1,10 +1,13 @@
 package main
 
-import "strings"
-
-import "strconv"
-
-import "time"
+import (
+	"archive/zip"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
 
 type suffixMultiplier struct {
 	suffix     string
@@ -57,4 +60,55 @@ func parseSizeString(size string) (int64, error) {
 func parseTimeDuration(duration string) (time.Duration, error) {
 	v, err := parseSuffixed(duration, timeSuffixes)
 	return time.Duration(v), err
+}
+
+type fileToArchive struct {
+	name, path string
+}
+
+func zipFilesToWriter(w *zip.Writer, files []fileToArchive) error {
+	for _, file := range files {
+		err := func() error {
+			src, err := os.Open(file.path)
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			dest, err := w.Create(file.name)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(dest, src); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func zipFilesToFile(zipFile string, perm os.FileMode, files []fileToArchive) error {
+	f, err := os.OpenFile(zipFile, os.O_WRONLY|os.O_CREATE, perm)
+	if err != nil {
+		return err
+	}
+	err = func() error {
+		defer f.Close()
+		zw := zip.NewWriter(f)
+		err := zipFilesToWriter(zw, files)
+		errClose := zw.Close()
+		if err != nil {
+			return err
+		}
+		return errClose
+	}()
+	if err != nil {
+		os.Remove(zipFile)
+	}
+	return err
 }

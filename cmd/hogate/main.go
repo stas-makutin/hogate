@@ -12,6 +12,8 @@ import (
 
 const appName = "hogate"
 
+var backgroundBlock sync.WaitGroup
+
 func usage() {
 	fmt.Printf(
 		`Home HTTP Gateway service.
@@ -98,6 +100,8 @@ func (app *application) run() {
 	if err != nil {
 		app.logger.Error(err)
 	}
+
+	backgroundBlock.Wait()
 
 	if !app.stopping {
 		app.stopService()
