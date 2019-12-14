@@ -12,7 +12,8 @@ import (
 var config Config
 
 type Config struct {
-	HttpServer HttpServerConfig `yaml:"httpServer"`
+	HttpServer  HttpServerConfig `yaml:"httpServer"`
+	Credentials `yaml:"credentials"`
 }
 
 type HttpServerConfig struct {
@@ -53,6 +54,27 @@ type TLSAcme struct {
 	RenewBefore   uint32   `yaml:"renewBefore,omitempty"`  // renew days before expiration, default is 30 days
 	CacheDir      string   `yaml:"cacheDir"`               // path to the directory
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
+}
+
+type Credentials struct {
+	Users   []User   `yaml:"users"`
+	Clients []Client `yaml:"clients,omitempty"`
+}
+
+type User struct {
+	Id       string   `yaml:"id"`
+	Name     string   `yaml:"name,omitempty"`
+	Password string   `yaml:"password"`
+	Scope    []string `yaml:"scope,omitempty"`
+}
+
+type Client struct {
+	Id          string   `yaml:"id"`
+	Name        string   `yaml:"name,omitempty"`
+	Secret      string   `yaml:"secret"`
+	RedirectUrl string   `yaml:"redirectUri,omitempty"`
+	Options     []string `yaml:"options"`
+	Scope       []string `yaml:"scope,omitempty"`
 }
 
 func loadConfig(cfgFile string) error {
