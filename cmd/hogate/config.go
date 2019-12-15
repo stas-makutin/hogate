@@ -13,6 +13,7 @@ var config Config
 
 type Config struct {
 	HttpServer  HttpServerConfig `yaml:"httpServer"`
+	Routes      []Route          `yaml:"routes"`
 	Credentials `yaml:"credentials"`
 }
 
@@ -56,25 +57,33 @@ type TLSAcme struct {
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
 
+type Route struct {
+	Type        string `yaml:"type"`
+	Path        string `yaml:"path,omitempty"`
+	RateLimit   string `yaml:"rateLimit,omitempty"`
+	MaxBodySize string `yaml:"maxBodySize,omitempty"`
+	Methods     string `yaml:"methods,omitempty"`
+}
+
 type Credentials struct {
 	Users   []User   `yaml:"users"`
 	Clients []Client `yaml:"clients,omitempty"`
 }
 
 type User struct {
-	Id       string   `yaml:"id"`
-	Name     string   `yaml:"name,omitempty"`
-	Password string   `yaml:"password"`
-	Scope    []string `yaml:"scope,omitempty"`
+	Id       string `yaml:"id"`
+	Name     string `yaml:"name,omitempty"`
+	Password string `yaml:"password"`
+	Scope    string `yaml:"scope,omitempty"`
 }
 
 type Client struct {
-	Id          string   `yaml:"id"`
-	Name        string   `yaml:"name,omitempty"`
-	Secret      string   `yaml:"secret"`
-	RedirectUrl string   `yaml:"redirectUri,omitempty"`
-	Options     []string `yaml:"options"`
-	Scope       []string `yaml:"scope,omitempty"`
+	Id          string `yaml:"id"`
+	Name        string `yaml:"name,omitempty"`
+	Secret      string `yaml:"secret"`
+	RedirectUrl string `yaml:"redirectUri,omitempty"`
+	Options     string `yaml:"options"`
+	Scope       string `yaml:"scope,omitempty"`
 }
 
 func loadConfig(cfgFile string) error {
@@ -89,6 +98,8 @@ func loadConfig(cfgFile string) error {
 	var errStr strings.Builder
 	validate := []func(sb strings.Builder){
 		validateHttpServerConfig,
+		validateRouteConfig,
+		validateCredentialsConfig,
 	}
 	for _, v := range validate {
 		v(errStr)
@@ -97,81 +108,4 @@ func loadConfig(cfgFile string) error {
 		return fmt.Errorf("The configuration file is invalid:%v", errStr)
 	}
 	return nil
-}
-
-func validateHttpServerConfig(errStr strings.Builder) {
-	if config.HttpServer.Port < 1 || config.HttpServer.Port > 65535 {
-		errStr.WriteString(NewLine + "httpServer.port must be between 1 and 65535.")
-	}
-
-	if config.HttpServer.Log != nil {
-		if config.HttpServer.Log.Dir == "" {
-			errStr.WriteString(NewLine + "httpServer.log.dir is required.")
-		}
-		if config.HttpServer.Log.File == "" {
-			config.HttpServer.Log.File = appName + ".log"
-		}
-		if config.HttpServer.Log.DirMode == 0 {
-			config.HttpServer.Log.DirMode = 0755
-		}
-		if config.HttpServer.Log.FileMode == 0 {
-			config.HttpServer.Log.FileMode = 0644
-		}
-		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.DirMode)
-		if err != nil {
-			errStr.WriteString(NewLine + "httpServer.log.dir is not valid.")
-		}
-
-		size, err := parseSizeString(config.HttpServer.Log.MaxSize)
-		if err == nil && size < 0 {
-			err = fmt.Errorf("negative value not allowed.")
-		}
-		if err != nil {
-			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxSize is not valid: %v", NewLine, err))
-		}
-		config.HttpServer.Log.MaxSizeBytes = size
-
-		duration, err := parseTimeDuration(config.HttpServer.Log.MaxAge)
-		if err == nil && duration < 0 {
-			err = fmt.Errorf("negative value not allowed.")
-		}
-		if err != nil {
-			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxAge is not valid: %v", NewLine, err))
-		}
-		config.HttpServer.Log.MaxAgeDuration = duration
-
-		config.HttpServer.Log.Archive = strings.ToLower(config.HttpServer.Log.Archive)
-		if !(config.HttpServer.Log.Archive == "" || config.HttpServer.Log.Archive == "zip") {
-			errStr.WriteString(NewLine + "httpServer.log.archive could be either empty or has \"zip\" value")
-		}
-	}
-
-	if config.HttpServer.TLSFiles != nil {
-		if config.HttpServer.TLSFiles.Certificate == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSFiles.certificate must be specified.")
-		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Certificate); err != nil {
-			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.certificate path: %v", NewLine, err))
-		}
-		if config.HttpServer.TLSFiles.Key == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSFiles.key must be specified.")
-		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Key); err != nil {
-			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.key path: %v", NewLine, err))
-		}
-	}
-
-	if config.HttpServer.TLSAcme != nil {
-		if len(config.HttpServer.TLSAcme.HostWhitelist) <= 0 {
-			errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not be empty.")
-		} else {
-			for _, v := range config.HttpServer.TLSAcme.HostWhitelist {
-				if v == "" {
-					errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not contain empty item.")
-					break
-				}
-			}
-		}
-		if config.HttpServer.TLSAcme.CacheDir == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSAcme.cacheDir cannot be empty.")
-		}
-	}
 }
