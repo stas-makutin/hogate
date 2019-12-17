@@ -71,8 +71,7 @@ type Credentials struct {
 }
 
 type User struct {
-	Id       string `yaml:"id"`
-	Name     string `yaml:"name,omitempty"`
+	Name     string `yaml:"name"`
 	Password string `yaml:"password"`
 	Scope    string `yaml:"scope,omitempty"`
 }
@@ -81,7 +80,7 @@ type Client struct {
 	Id          string `yaml:"id"`
 	Name        string `yaml:"name,omitempty"`
 	Secret      string `yaml:"secret"`
-	RedirectUrl string `yaml:"redirectUri,omitempty"`
+	RedirectUri string `yaml:"redirectUri,omitempty"`
 	Options     string `yaml:"options"`
 	Scope       string `yaml:"scope,omitempty"`
 }
@@ -110,7 +109,7 @@ func loadConfig(cfgFile string) error {
 		v(ce)
 	}
 	if errStr.Len() > 0 {
-		return fmt.Errorf("The configuration file is invalid:%v", errStr)
+		return fmt.Errorf("The configuration file is invalid:%v", errStr.String())
 	}
 	return nil
 }

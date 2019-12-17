@@ -23,12 +23,14 @@ var sizeSuffixes []suffixMultiplier = []suffixMultiplier{
 }
 
 var timeSuffixes []suffixMultiplier = []suffixMultiplier{
-	{"microseconds", float64(time.Microsecond)}, {"microsecond", float64(time.Microsecond)}, {"mks", float64(time.Microsecond)},
-	{"milliseconds", float64(time.Millisecond)}, {"millisecond", float64(time.Millisecond)}, {"ms", float64(time.Millisecond)},
-	{"seconds", float64(time.Second)}, {"second", float64(time.Second)}, {"s", float64(time.Second)},
-	{"minutes", float64(time.Minute)}, {"minute", float64(time.Minute)}, {"m", float64(time.Minute)},
-	{"hours", float64(time.Hour)}, {"hour", float64(time.Hour)}, {"h", float64(time.Hour)},
-	{"days", float64(24 * time.Hour)}, {"day", float64(24 * time.Hour)}, {"d", float64(24 * time.Hour)},
+	{"microseconds", float64(time.Microsecond)}, {"microsecond", float64(time.Microsecond)}, 
+	{"milliseconds", float64(time.Millisecond)}, {"millisecond", float64(time.Millisecond)}, 
+	{"minutes", float64(time.Minute)}, {"minute", float64(time.Minute)}, 
+	{"hours", float64(time.Hour)}, {"hour", float64(time.Hour)}, 
+	{"days", float64(24 * time.Hour)}, {"day", float64(24 * time.Hour)}, 
+	{"seconds", float64(time.Second)}, {"second", float64(time.Second)}, 
+	{"mks", float64(time.Microsecond)}, {"ms", float64(time.Millisecond)},
+	{"m", float64(time.Minute)}, {"h", float64(time.Hour)}, {"d", float64(24 * time.Hour)}, {"s", float64(time.Second)},
 }
 
 func parseSuffixed(value string, suffixes []suffixMultiplier) (int64, error) {

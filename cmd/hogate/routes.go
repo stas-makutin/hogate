@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -14,86 +17,82 @@ const (
 )
 
 type routeInfo struct {
-	routeType   int
+	path        string
 	rateLimit   float64
 	rateBurst   int
 	maxBodySize int64
 	methods     []string
 }
 
-var specialRoutes = map[int]*routeInfo{
+var dedicatedRoutes = map[int]*routeInfo{
 	routeOAuthAuthorize: {
-		routeType:   routeOAuthAuthorize,
-		rateLimit:   5,
+		path:        "/authorize",
+		rateLimit:   10,
 		rateBurst:   3,
 		maxBodySize: 4096,
-		methods:     []string{"GET", "POST"},
+		methods:     []string{"GET", "POST", "OPTIONS"},
 	},
 	routeOAuthToken: {
-		routeType:   routeOAuthToken,
-		rateLimit:   10,
-		rateBurst:   4,
+		path:        "/token",
+		rateLimit:   20,
+		rateBurst:   5,
 		maxBodySize: 8196,
-		methods:     []string{"GET", "POST"},
+		methods:     []string{"GET", "POST", "OPTIONS"},
 	},
 }
 
 func validateRouteConfig(cfgError configError) {
 	for i, route := range config.Routes {
-		var ri routeInfo
-		var err error
-		valid := true
-
-		ri.routeType, err = parseRouteType(route.Type)
-		if err != nil {
-			cfgError(fmt.Sprintf("routes, route %v has unknown type '%v'.", i, route.Type))
-			valid = false
+		routeError := func(msg string) {
+			cfgError(fmt.Sprintf("routes, route %v: %v", i, msg))
 		}
 
-		hasRateLimit := false
-		if route.RateLimit != "" {
-			hasRateLimit = true
-			ri.rateLimit, ri.rateBurst, err = parseRateLimit(route.RateLimit)
-			if err != nil {
-				cfgError(fmt.Sprintf("routes, route %v has incorrect rateLimit value '%v': %v", i, route.RateLimit, err))
-				valid = false
+		routeType, err := parseRouteType(route.Type)
+		if err != nil {
+			routeError(fmt.Sprintf("unknown type '%v'.", route.Type))
+			continue
+		}
+
+		ri, ok := dedicatedRoutes[routeType]
+		if !ok {
+			routeError(fmt.Sprintf("internal error - dedicated type %v is not set.", route.Type))
+			continue
+		}
+
+		if route.Path != "" {
+			if path, err := parseRoutePath(route.Path); err != nil {
+				routeError(fmt.Sprintf("invalid path '%v': %v", route.Path, err))
+			} else {
+				ri.path = path
 			}
 		}
 
-		hasMaxBodySize := false
+		if route.RateLimit != "" {
+			if rateLimit, rateBurst, err := parseRateLimit(route.RateLimit); err != nil {
+				routeError(fmt.Sprintf("invalid rateLimit value '%v': %v", route.RateLimit, err))
+			} else {
+				ri.rateLimit = rateLimit
+				ri.rateBurst = rateBurst
+			}
+		}
+
 		if route.MaxBodySize != "" {
-			hasMaxBodySize = true
-			ri.maxBodySize, err = parseSizeString(route.MaxBodySize)
-			if err == nil && ri.maxBodySize < 0 {
+			maxBodySize, err := parseSizeString(route.MaxBodySize)
+			if err == nil && maxBodySize < 0 {
 				err = fmt.Errorf("negative value not allowed.")
 			}
 			if err != nil {
-				cfgError(fmt.Sprintf("routes, route %v has incorrect maxBodySize value '%v': %v", i, route.MaxBodySize, err))
-				valid = false
+				routeError(fmt.Sprintf("invalid maxBodySize value '%v': %v", route.MaxBodySize, err))
+			} else {
+				ri.maxBodySize = maxBodySize
 			}
 		}
 
-		hasMethods := false
 		if route.Methods != "" {
-			hasMethods = true
-			ri.methods, err = parseRouteMethods(route.Methods)
-			if err != nil {
-				cfgError(fmt.Sprintf("routes, route %v has incorrect methods value '%v': %v", i, route.Methods, err))
-				valid = false
-			}
-		}
-
-		if valid {
-			current := specialRoutes[ri.routeType]
-			if hasRateLimit {
-				current.rateLimit = ri.rateLimit
-				current.rateBurst = ri.rateBurst
-			}
-			if hasMaxBodySize {
-				current.maxBodySize = ri.maxBodySize
-			}
-			if hasMethods {
-				current.methods = ri.methods
+			if methods, err := parseRouteMethods(route.Methods); err != nil {
+				routeError(fmt.Sprintf("invalid methods value '%v': %v", route.Methods, err))
+			} else {
+				ri.methods = methods
 			}
 		}
 	}
@@ -107,6 +106,23 @@ func parseRouteType(t string) (int, error) {
 		return routeOAuthToken, nil
 	}
 	return 0, fmt.Errorf("Unrecognized route type.")
+}
+
+func parseRoutePath(path string) (string, error) {
+	if path == "" {
+		return "/", nil
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	url, err := url.Parse(path)
+	if err != nil {
+		return "", err
+	}
+	if url.Path != path {
+		return "", fmt.Errorf("path must contain URI path only.")
+	}
+	return path, nil
 }
 
 func parseRateLimit(rateLimit string) (float64, int, error) {
@@ -144,10 +160,56 @@ func parseRouteMethods(methods string) ([]string, error) {
 	return rv, nil
 }
 
-func routeMiddleware(ri *routeInfo) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		})
+func handleDedicatedRoute(router *http.ServeMux, routeType int, handler http.Handler) {
+	ri, ok := dedicatedRoutes[routeType]
+	if !ok {
+		panic(fmt.Sprintf("Unknown route type %v.", routeType))
 	}
+
+	handleRoute(router, ri, handler)
+}
+
+func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
+	if ri.maxBodySize > 0 {
+		handler = func(next http.Handler) http.Handler { 
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				r.Body = http.MaxBytesReader(w, r.Body, ri.maxBodySize)
+				next.ServeHTTP(w, r)
+			})
+		}(handler)
+	}
+
+	if ri.rateLimit > 0 {
+		limiter := rate.NewLimiter(rate.Limit(ri.rateLimit), ri.rateBurst)
+		handler = func(next http.Handler) http.Handler { 
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if limiter.Allow() == false {
+					http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+					return
+				}			
+				next.ServeHTTP(w, r)
+			})
+		}(handler)
+	}
+
+	if len(ri.methods) > 0 {
+		handler = func(next http.Handler) http.Handler { 
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				notFound := true
+				for _, method := range ri.methods {
+					if method == r.Method {
+						notFound = false
+						break
+					}
+				}
+				if notFound {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return
+				}
+				next.ServeHTTP(w, r)
+			})
+		}(handler)
+	}
+
+	router.Handle(ri.path, handler)	
 }
