@@ -86,6 +86,8 @@ type Client struct {
 	Scope       string `yaml:"scope,omitempty"`
 }
 
+type configError func(msg string)
+
 func loadConfig(cfgFile string) error {
 	file, err := os.Open(cfgFile)
 	if err != nil {
@@ -96,13 +98,16 @@ func loadConfig(cfgFile string) error {
 		return fmt.Errorf("Unable to parse configuration file: %v", err)
 	}
 	var errStr strings.Builder
-	validate := []func(sb strings.Builder){
+	ce := func(msg string) {
+		errStr.WriteString(NewLine + msg)
+	}
+	validate := []func(cfgError configError){
 		validateHttpServerConfig,
 		validateRouteConfig,
 		validateCredentialsConfig,
 	}
 	for _, v := range validate {
-		v(errStr)
+		v(ce)
 	}
 	if errStr.Len() > 0 {
 		return fmt.Errorf("The configuration file is invalid:%v", errStr)

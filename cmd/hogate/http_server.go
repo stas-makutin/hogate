@@ -28,14 +28,14 @@ type httpServer struct {
 
 const httpLogMessage = "logMessage"
 
-func validateHttpServerConfig(errStr strings.Builder) {
+func validateHttpServerConfig(cfgError configError) {
 	if config.HttpServer.Port < 1 || config.HttpServer.Port > 65535 {
-		errStr.WriteString(NewLine + "httpServer.port must be between 1 and 65535.")
+		cfgError("httpServer.port must be between 1 and 65535.")
 	}
 
 	if config.HttpServer.Log != nil {
 		if config.HttpServer.Log.Dir == "" {
-			errStr.WriteString(NewLine + "httpServer.log.dir is required.")
+			cfgError("httpServer.log.dir is required.")
 		}
 		if config.HttpServer.Log.File == "" {
 			config.HttpServer.Log.File = appName + ".log"
@@ -48,7 +48,7 @@ func validateHttpServerConfig(errStr strings.Builder) {
 		}
 		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.DirMode)
 		if err != nil {
-			errStr.WriteString(NewLine + "httpServer.log.dir is not valid.")
+			cfgError("httpServer.log.dir is not valid.")
 		}
 
 		size, err := parseSizeString(config.HttpServer.Log.MaxSize)
@@ -56,7 +56,7 @@ func validateHttpServerConfig(errStr strings.Builder) {
 			err = fmt.Errorf("negative value not allowed.")
 		}
 		if err != nil {
-			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxSize is not valid: %v", NewLine, err))
+			cfgError(fmt.Sprintf("httpServer.log.maxSize is not valid: %v", err))
 		}
 		config.HttpServer.Log.MaxSizeBytes = size
 
@@ -65,42 +65,42 @@ func validateHttpServerConfig(errStr strings.Builder) {
 			err = fmt.Errorf("negative value not allowed.")
 		}
 		if err != nil {
-			errStr.WriteString(fmt.Sprintf("%vhttpServer.log.maxAge is not valid: %v", NewLine, err))
+			cfgError(fmt.Sprintf("httpServer.log.maxAge is not valid: %v", err))
 		}
 		config.HttpServer.Log.MaxAgeDuration = duration
 
 		config.HttpServer.Log.Archive = strings.ToLower(config.HttpServer.Log.Archive)
 		if !(config.HttpServer.Log.Archive == "" || config.HttpServer.Log.Archive == "zip") {
-			errStr.WriteString(NewLine + "httpServer.log.archive could be either empty or has \"zip\" value")
+			cfgError("httpServer.log.archive could be either empty or has \"zip\" value")
 		}
 	}
 
 	if config.HttpServer.TLSFiles != nil {
 		if config.HttpServer.TLSFiles.Certificate == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSFiles.certificate must be specified.")
+			cfgError("httpServer.TLSFiles.certificate must be specified.")
 		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Certificate); err != nil {
-			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.certificate path: %v", NewLine, err))
+			cfgError(fmt.Sprintf("Unable to access the file using httpServer.TLSFiles.certificate path: %v", err))
 		}
 		if config.HttpServer.TLSFiles.Key == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSFiles.key must be specified.")
+			cfgError("httpServer.TLSFiles.key must be specified.")
 		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Key); err != nil {
-			errStr.WriteString(fmt.Sprintf("%vUnable to access the file using httpServer.TLSFiles.key path: %v", NewLine, err))
+			cfgError(fmt.Sprintf("Unable to access the file using httpServer.TLSFiles.key path: %v", err))
 		}
 	}
 
 	if config.HttpServer.TLSAcme != nil {
 		if len(config.HttpServer.TLSAcme.HostWhitelist) <= 0 {
-			errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not be empty.")
+			cfgError("httpServer.TLSAcme.hostWhitelist must not be empty.")
 		} else {
 			for _, v := range config.HttpServer.TLSAcme.HostWhitelist {
 				if v == "" {
-					errStr.WriteString(NewLine + "httpServer.TLSAcme.hostWhitelist must not contain empty item.")
+					cfgError("httpServer.TLSAcme.hostWhitelist must not contain empty item.")
 					break
 				}
 			}
 		}
 		if config.HttpServer.TLSAcme.CacheDir == "" {
-			errStr.WriteString(NewLine + "httpServer.TLSAcme.cacheDir cannot be empty.")
+			cfgError("httpServer.TLSAcme.cacheDir cannot be empty.")
 		}
 	}
 }
