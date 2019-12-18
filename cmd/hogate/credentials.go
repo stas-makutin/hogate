@@ -8,10 +8,20 @@ import (
 
 var credentials credentialsContainer
 
+const (
+	scopeYandexHome = uint16(iota)
+)
+
+type scopeSet map[uint16]struct{}
+
+var scopeNames = map[uint16]string{
+	scopeYandexHome: "yandex-home",
+}
+
 type userInfo struct {
 	name     string
 	password string
-	scope    []uint32
+	scope    scopeSet
 }
 
 const (
@@ -26,7 +36,7 @@ type clientInfo struct {
 	secret      string
 	redirectUri string
 	options     uint32
-	scope       []uint32
+	scope       scopeSet
 }
 
 type credentialsContainer struct {
@@ -53,7 +63,12 @@ func validateCredentialsConfig(cfgError configError) {
 			userError("password cannot be empty.")
 		}
 
-		credentials.users[user.Name] = userInfo{name: user.Name, password: user.Password}
+		scope, err := parseScope(user.Scope)
+		if err != nil {
+			userError(err.Error())
+		}
+
+		credentials.users[user.Name] = userInfo{name: user.Name, password: user.Password, scope: scope}
 	}
 
 	for i, client := range config.Credentials.Clients {
@@ -88,26 +103,65 @@ func validateCredentialsConfig(cfgError configError) {
 			clientError("redirectUri cannot be empty if authorizationCode option is set.")
 		}
 
+		scope, err := parseScope(client.Scope)
+		if err != nil {
+			clientError(err.Error())
+		}
+
 		credentials.clients[client.Id] = clientInfo{
 			id:          client.Id,
 			name:        clientName,
 			secret:      client.Secret,
 			redirectUri: client.RedirectUri,
 			options:     options,
+			scope:       scope,
 		}
 	}
+}
+
+func (s scopeSet) String() string {
+	var sb strings.Builder
+	for k, _ := range s {
+		if name, ok := scopeNames[k]; ok {
+			if sb.Len() > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(name)
+		}
+	}
+	return sb.String()
+}
+
+func parseScope(scope string) (scopeSet, error) {
+	rv := make(scopeSet)
+	for _, word := range strings.FieldsFunc(scope, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
+		if word != "" {
+			found := false
+			for k, v := range scopeNames {
+				if strings.ToLower(word) == strings.ToLower(v) {
+					rv[k] = struct{}{}
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("unknown scope '%v'", word)
+			}
+		}
+	}
+	return rv, nil
 }
 
 func parseClientOptions(options string) (uint32, error) {
 	rv := uint32(0)
 	for _, word := range strings.FieldsFunc(options, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
 		if word != "" {
-			switch word {
-			case "authorizationCode":
+			switch strings.ToLower(word) {
+			case "authorizationcode":
 				rv |= coAuthorizationCode
-			case "clientCredentials":
+			case "clientcredentials":
 				rv |= coClientCredentials
-			case "refreshToken":
+			case "refreshtoken":
 				rv |= coRefreshToken
 			default:
 				return 0, fmt.Errorf("unknown option '%v'", word)

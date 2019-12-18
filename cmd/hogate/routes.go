@@ -99,7 +99,7 @@ func validateRouteConfig(cfgError configError) {
 }
 
 func parseRouteType(t string) (int, error) {
-	switch t {
+	switch strings.ToLower(t) {
 	case "oauth-authorize":
 		return routeOAuthAuthorize, nil
 	case "oauth-token":
@@ -171,7 +171,7 @@ func handleDedicatedRoute(router *http.ServeMux, routeType int, handler http.Han
 
 func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
 	if ri.maxBodySize > 0 {
-		handler = func(next http.Handler) http.Handler { 
+		handler = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				r.Body = http.MaxBytesReader(w, r.Body, ri.maxBodySize)
 				next.ServeHTTP(w, r)
@@ -181,19 +181,19 @@ func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
 
 	if ri.rateLimit > 0 {
 		limiter := rate.NewLimiter(rate.Limit(ri.rateLimit), ri.rateBurst)
-		handler = func(next http.Handler) http.Handler { 
+		handler = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if limiter.Allow() == false {
 					http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 					return
-				}			
+				}
 				next.ServeHTTP(w, r)
 			})
 		}(handler)
 	}
 
 	if len(ri.methods) > 0 {
-		handler = func(next http.Handler) http.Handler { 
+		handler = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				notFound := true
 				for _, method := range ri.methods {
@@ -211,5 +211,5 @@ func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
 		}(handler)
 	}
 
-	router.Handle(ri.path, handler)	
+	router.Handle(ri.path, handler)
 }
