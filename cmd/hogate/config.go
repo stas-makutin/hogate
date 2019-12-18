@@ -12,9 +12,10 @@ import (
 var config Config
 
 type Config struct {
-	HttpServer  HttpServerConfig `yaml:"httpServer"`
-	Routes      []Route          `yaml:"routes"`
-	Credentials `yaml:"credentials"`
+	HttpServer     HttpServerConfig `yaml:"httpServer"`
+	Routes         *[]Route         `yaml:"routes"`
+	*Authorization `yaml:"authorization"`
+	*Credentials   `yaml:"credentials"`
 }
 
 type HttpServerConfig struct {
@@ -65,6 +66,17 @@ type Route struct {
 	Methods     string `yaml:"methods,omitempty"`
 }
 
+type Authorization struct {
+	TokenSecret string                 `yaml:"tokenSecret,omitempty"`
+	LifeTime    *AuthorizationLifeTime `yaml:"lifeTime,omitempty"`
+}
+
+type AuthorizationLifeTime struct {
+	CodeToken    string `yaml:"codeToken,omitempty"`
+	AccessToken  string `yaml:"accessToken,omitempty"`
+	RefreshToken string `yaml:"refreshToken,omitempty"`
+}
+
 type Credentials struct {
 	Users   []User   `yaml:"users"`
 	Clients []Client `yaml:"clients,omitempty"`
@@ -104,6 +116,7 @@ func loadConfig(cfgFile string) error {
 		validateHttpServerConfig,
 		validateRouteConfig,
 		validateCredentialsConfig,
+		validateAuthorizationConfig,
 	}
 	for _, v := range validate {
 		v(ce)

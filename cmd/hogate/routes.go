@@ -42,7 +42,11 @@ var dedicatedRoutes = map[int]*routeInfo{
 }
 
 func validateRouteConfig(cfgError configError) {
-	for i, route := range config.Routes {
+	if config.Routes == nil {
+		return
+	}
+
+	for i, route := range *config.Routes {
 		routeError := func(msg string) {
 			cfgError(fmt.Sprintf("routes, route %v: %v", i, msg))
 		}

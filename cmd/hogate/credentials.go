@@ -8,13 +8,15 @@ import (
 
 var credentials credentialsContainer
 
+type scopeType uint16
+
 const (
-	scopeYandexHome = uint16(iota)
+	scopeYandexHome = scopeType(iota)
 )
 
-type scopeSet map[uint16]struct{}
+type scopeSet map[scopeType]struct{}
 
-var scopeNames = map[uint16]string{
+var scopeNames = map[scopeType]string{
 	scopeYandexHome: "yandex-home",
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"io"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -23,12 +24,12 @@ var sizeSuffixes []suffixMultiplier = []suffixMultiplier{
 }
 
 var timeSuffixes []suffixMultiplier = []suffixMultiplier{
-	{"microseconds", float64(time.Microsecond)}, {"microsecond", float64(time.Microsecond)}, 
-	{"milliseconds", float64(time.Millisecond)}, {"millisecond", float64(time.Millisecond)}, 
-	{"minutes", float64(time.Minute)}, {"minute", float64(time.Minute)}, 
-	{"hours", float64(time.Hour)}, {"hour", float64(time.Hour)}, 
-	{"days", float64(24 * time.Hour)}, {"day", float64(24 * time.Hour)}, 
-	{"seconds", float64(time.Second)}, {"second", float64(time.Second)}, 
+	{"microseconds", float64(time.Microsecond)}, {"microsecond", float64(time.Microsecond)},
+	{"milliseconds", float64(time.Millisecond)}, {"millisecond", float64(time.Millisecond)},
+	{"minutes", float64(time.Minute)}, {"minute", float64(time.Minute)},
+	{"hours", float64(time.Hour)}, {"hour", float64(time.Hour)},
+	{"days", float64(24 * time.Hour)}, {"day", float64(24 * time.Hour)},
+	{"seconds", float64(time.Second)}, {"second", float64(time.Second)},
 	{"mks", float64(time.Microsecond)}, {"ms", float64(time.Millisecond)},
 	{"m", float64(time.Minute)}, {"h", float64(time.Hour)}, {"d", float64(24 * time.Hour)}, {"s", float64(time.Second)},
 }
@@ -113,4 +114,16 @@ func zipFilesToFile(zipFile string, perm os.FileMode, files []fileToArchive) err
 		os.Remove(zipFile)
 	}
 	return err
+}
+
+func randomString(size int, alphabet []rune) string {
+	if size <= 0 {
+		return ""
+	}
+	b := make([]rune, size)
+	l := int64(len(alphabet))
+	for i := range b {
+		b[i] = alphabet[rand.Int63n(l)]
+	}
+	return string(b)
 }
