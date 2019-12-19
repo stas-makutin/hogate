@@ -48,19 +48,23 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if strings.Contains(redirectUri, "?") {
-			redirectUri += "&"
+		targetUrl := redirectUri
+		if strings.Contains(targetUrl, "?") {
+			targetUrl += "&"
 		} else {
-			redirectUri += "?"
+			targetUrl += "?"
 		}
 
 		action := r.URL.Query().Get("action")
 		if action == "deny" {
-			redirectUri += fmt.Sprintf(
+			targetUrl += fmt.Sprintf(
 				"error=access_denied&error_description=The+request+denied.&state=%v", url.QueryEscape(state),
 			)
-			w.Header().Set("Location", redirectUri)
-			w.WriteHeader(http.StatusFound)
+			/*
+				w.Header().Set("Location", targetUrl)
+				w.WriteHeader(http.StatusFound)
+			*/
+			fmt.Fprintf(w, targetUrl)
 			return
 		}
 
@@ -73,21 +77,24 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			redirectUri += fmt.Sprintf(
+			targetUrl += fmt.Sprintf(
 				"code=%v&client_id=%v&scope=%v&state=%v", url.QueryEscape(code), url.QueryEscape(clientId), url.QueryEscape(scope), url.QueryEscape(state),
 			)
-			w.Header().Set("Location", redirectUri)
-			w.WriteHeader(http.StatusFound)
+			/*
+				w.Header().Set("Location", targetUrl)
+				w.WriteHeader(http.StatusFound)
+			*/
+			fmt.Fprintf(w, targetUrl)
 			return
 		} else {
 			message = "User unknown or has no permission."
 		}
 	}
 
-	actionUrl := r.URL.RawQuery
-	if actionUrl != "" {
-		actionUrl += "&action="
-	}
+	actionUrl := fmt.Sprintf(
+		"?response_type=%v&client_id=%v&redirect_uri=%v&scope=%v&state=%v&action=",
+		url.QueryEscape(responseType), url.QueryEscape(clientId), url.QueryEscape(redirectUri), url.QueryEscape(scope), url.QueryEscape(state),
+	)
 
 	var scopeList strings.Builder
 	for k, _ := range parsedScope {
@@ -137,7 +144,7 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 	</form>
 </body>
 </html>`,
-		actionUrl+"deny", html.EscapeString(ci.name), scopeList, message, actionUrl+"allow",
+		actionUrl+"deny", html.EscapeString(ci.name), scopeList.String(), message, actionUrl+"allow",
 	)
 }
 
@@ -147,7 +154,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	successfulResponse := func(clientId, userName string, scope scopeSet, setRefreshToken bool) {
-		accessToken, err := createAuthToken(authTokenAccess, clientId, userName, ss)
+		accessToken, err := createAuthToken(authTokenAccess, clientId, userName, scope)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
@@ -155,7 +162,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 
 		refreshToken := ""
 		if setRefreshToken {
-			refreshToken, err = createAuthToken(authTokenRefresh, clientId, userName, ss)
+			refreshToken, err = createAuthToken(authTokenRefresh, clientId, userName, scope)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return

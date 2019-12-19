@@ -7,7 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-var authTokenSecret string
+var authTokenSecret []byte
 var codeTokenLifeTime = time.Minute * 3
 var accessTokenLifeTime = time.Hour * 1
 var refreshTokenLifeTime = time.Hour * 24 * 90
@@ -43,9 +43,9 @@ func (c AuthTokenClaims) Valid() error {
 func validateAuthorizationConfig(cfgError configError) {
 
 	if config.Authorization.TokenSecret != "" {
-		authTokenSecret = config.Authorization.TokenSecret
+		authTokenSecret = []byte(config.Authorization.TokenSecret)
 	} else {
-		authTokenSecret = randomString(generatedAuthTokenSecretSize, generatedAuthTokenSecretAlphabet)
+		authTokenSecret = []byte(randomString(generatedAuthTokenSecretSize, generatedAuthTokenSecretAlphabet))
 	}
 
 	if config.Authorization.LifeTime != nil {

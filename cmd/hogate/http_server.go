@@ -139,10 +139,6 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 
 	addOAuthRoutes(router)
 
-	router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "test")
-	}))
-
 	var handler http.Handler = router
 	if config.HttpServer.Log != nil {
 		handler = logMiddleware(errorLog)(handler)
