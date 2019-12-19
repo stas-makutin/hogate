@@ -75,7 +75,7 @@ func validateAuthorizationConfig(cfgError configError) {
 	}
 }
 
-func createAuthToken(tokenType byte, clientId, userName string, scope []scopeType) (string, error) {
+func createAuthToken(tokenType byte, clientId, userName string, scope scopeSet) (string, error) {
 	var duration time.Duration
 	switch tokenType {
 	case authTokenCode:
@@ -93,9 +93,13 @@ func createAuthToken(tokenType byte, clientId, userName string, scope []scopeTyp
 		Type:      tokenType,
 		ClientId:  clientId,
 		UserName:  userName,
-		Scope:     scope,
 		ExpiresAt: expiresAt,
 	}
+
+	for k, _ := range scope {
+		claims.Scope = append(claims.Scope, k)
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(authTokenSecret)
 }

@@ -20,6 +20,10 @@ var scopeNames = map[scopeType]string{
 	scopeYandexHome: "yandex-home",
 }
 
+var scopeDisplayNames = map[scopeType]string{
+	scopeYandexHome: "Yandex Home",
+}
+
 type userInfo struct {
 	name     string
 	password string
@@ -121,10 +125,55 @@ func validateCredentialsConfig(cfgError configError) {
 	}
 }
 
+func (s scopeType) String() string {
+	if name, ok := scopeNames[s]; ok {
+		return name
+	}
+	return ""
+}
+
+func (s scopeType) displayName() string {
+	if name, ok := scopeDisplayNames[s]; ok {
+		return name
+	}
+	return ""
+}
+
+func (s scopeSet) test(scope scopeSet, allowEmpty bool) bool {
+	empty := true
+	for k, _ := range scope {
+		if _, ok := s[k]; !ok {
+			return false
+		}
+		empty = false
+	}
+	if empty {
+		return allowEmpty
+	}
+	return true
+}
+
+func (s scopeSet) same(scope scopeSet) bool {
+	if len(s) == len(scope) {
+		for k, _ := range scope {
+			if _, ok := s[k]; !ok {
+				return false
+			}
+		}
+		for k, _ := range s {
+			if _, ok := scope[k]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func (s scopeSet) String() string {
 	var sb strings.Builder
 	for k, _ := range s {
-		if name, ok := scopeNames[k]; ok {
+		if name := k.String(); name != "" {
 			if sb.Len() > 0 {
 				sb.WriteString(" ")
 			}
@@ -132,6 +181,31 @@ func (s scopeSet) String() string {
 		}
 	}
 	return sb.String()
+}
+
+func (c credentialsContainer) client(clientId string) (*clientInfo, bool) {
+	ci, ok := c.clients[clientId]
+	return &ci, ok
+}
+
+func (c credentialsContainer) user(userName string) (*userInfo, bool) {
+	ui, ok := c.users[userName]
+	return &ui, ok
+}
+
+func (c credentialsContainer) verifyUser(userName, password string) (*userInfo, bool) {
+	if ui, ok := c.user(userName); ok && ui.password == password {
+		return ui, true
+	}
+	return nil, false
+}
+
+func newScopeSet(scope ...scopeType) scopeSet {
+	rv := make(scopeSet)
+	for _, s := range scope {
+		rv[s] = struct{}{}
+	}
+	return rv
 }
 
 func parseScope(scope string) (scopeSet, error) {

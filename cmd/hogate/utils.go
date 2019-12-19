@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"io"
 	"math/rand"
 	"os"
@@ -126,4 +127,13 @@ func randomString(size int, alphabet []rune) string {
 		b[i] = alphabet[rand.Int63n(l)]
 	}
 	return string(b)
+}
+
+func jsonEscape(i string) string {
+	b, err := json.Marshal(i)
+	if err != nil {
+		panic(err)
+	}
+	s := string(b)
+	return s[1 : len(s)-1]
 }
