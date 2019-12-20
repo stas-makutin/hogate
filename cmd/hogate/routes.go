@@ -14,6 +14,11 @@ import (
 const (
 	routeOAuthAuthorize = iota
 	routeOAuthToken
+	routeYandexHomeHealth
+	routeYandexHomeUnlink
+	routeYandexHomeDevices
+	routeYandexHomeQuery
+	routeYandexHomeAction
 )
 
 type routeInfo struct {
@@ -38,6 +43,41 @@ var dedicatedRoutes = map[int]*routeInfo{
 		rateBurst:   5,
 		maxBodySize: 8196,
 		methods:     []string{"GET", "POST", "OPTIONS"},
+	},
+	routeYandexHomeHealth: {
+		path:        "/yandex/home/v1.0",
+		rateLimit:   50,
+		rateBurst:   10,
+		maxBodySize: 256,
+		methods:     []string{"GET", "OPTIONS"},
+	},
+	routeYandexHomeUnlink: {
+		path:        "/yandex/home/v1.0/user/unlink",
+		rateLimit:   10,
+		rateBurst:   3,
+		maxBodySize: 256,
+		methods:     []string{"GET", "POST", "OPTIONS"},
+	},
+	routeYandexHomeDevices: {
+		path:        "/yandex/home/v1.0/user/devices",
+		rateLimit:   20,
+		rateBurst:   5,
+		maxBodySize: 256,
+		methods:     []string{"GET", "POST", "OPTIONS"},
+	},
+	routeYandexHomeQuery: {
+		path:        "/yandex/home/v1.0/user/devices/query",
+		rateLimit:   1,
+		rateBurst:   1,
+		maxBodySize: 102400,
+		methods:     []string{"POST", "OPTIONS"},
+	},
+	routeYandexHomeAction: {
+		path:        "/yandex/home/v1.0/user/devices/action",
+		rateLimit:   1,
+		rateBurst:   1,
+		maxBodySize: 512000,
+		methods:     []string{"POST", "OPTIONS"},
 	},
 }
 
@@ -108,6 +148,16 @@ func parseRouteType(t string) (int, error) {
 		return routeOAuthAuthorize, nil
 	case "oauth-token":
 		return routeOAuthToken, nil
+	case "yandex-home-health":
+		return routeYandexHomeHealth, nil
+	case "yandex-home-unlink":
+		return routeYandexHomeUnlink, nil
+	case "yandex-home-devices":
+		return routeYandexHomeDevices, nil
+	case "yandex-home-query":
+		return routeYandexHomeQuery, nil
+	case "yandex-home-action":
+		return routeYandexHomeAction, nil
 	}
 	return 0, fmt.Errorf("Unrecognized route type.")
 }

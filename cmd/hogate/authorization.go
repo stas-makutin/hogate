@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -41,6 +42,9 @@ func (c AuthTokenClaims) Valid() error {
 }
 
 func validateAuthorizationConfig(cfgError configError) {
+	if config.Authorization == nil {
+		return
+	}
 
 	if config.Authorization.TokenSecret != "" {
 		authTokenSecret = []byte(config.Authorization.TokenSecret)
@@ -118,4 +122,13 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 		err = fmt.Errorf("invalid token")
 	}
 	return nil, err
+}
+
+func authorizationMiddleware(scope ...scopeType) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

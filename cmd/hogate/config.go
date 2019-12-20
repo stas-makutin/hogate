@@ -16,6 +16,7 @@ type Config struct {
 	Routes         *[]Route         `yaml:"routes"`
 	*Authorization `yaml:"authorization"`
 	*Credentials   `yaml:"credentials"`
+	*ZwCmd         `yaml:"zwCmd"`
 }
 
 type HttpServerConfig struct {
@@ -97,6 +98,11 @@ type Client struct {
 	Scope       string `yaml:"scope,omitempty"`
 }
 
+type ZwCmd struct {
+	Path    string `yaml:"path,omitempty"`
+	Timeout int    `yaml:"timeout,omitempty"`
+}
+
 type configError func(msg string)
 
 func loadConfig(cfgFile string) error {
@@ -117,6 +123,7 @@ func loadConfig(cfgFile string) error {
 		validateRouteConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,
+		validateZwCmdConfig,
 	}
 	for _, v := range validate {
 		v(ce)
