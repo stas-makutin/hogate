@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -30,6 +32,8 @@ const (
 	authTokenAccess
 	authTokenRefresh
 )
+
+const httpAuthorizationKey = "authClaim"
 
 func (c AuthTokenClaims) Valid() error {
 	if c.Type != authTokenCode && c.Type != authTokenAccess && c.Type != authTokenRefresh {
@@ -124,11 +128,53 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 	return nil, err
 }
 
-func authorizationMiddleware(scope ...scopeType) func(http.Handler) http.Handler {
+func httpAuthorization(r *http.Request) *AuthTokenClaims {
+	if claim, ok := r.Context().Value(httpLogMessage).(*AuthTokenClaims); ok {
+		return claim
+	}
+	return nil
+}
+
+func authorizationHandler(scope ...scopeType) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-			next.ServeHTTP(w, r)
+			authorization := r.Header.Get("Authorization")
+			if authorization == "" {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+			if strings.HasPrefix(authorization, "Bearer ") {
+				if claim, err := parseAuthToken(authorization[7:]); err == nil && claim.Type == authTokenAccess {
+					valid := true
+					if len(scope) > 0 {
+						var ss scopeSet
+						if len(claim.Scope) > 0 {
+							ss = newScopeSet(claim.Scope...)
+						} else if claim.UserName != "" && claim.ClientId == "" {
+							if ui, ok := credentials.user(claim.UserName); ok {
+								ss = ui.scope
+							} else {
+								valid = false
+							}
+						} else {
+							valid = false
+						}
+						if valid {
+							for _, v := range scope {
+								if _, ok := ss[v]; !ok {
+									valid = false
+									break
+								}
+							}
+						}
+					}
+					if valid {
+						next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey, claim)))
+						return
+					}
+				}
+			}
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		})
 	}
 }

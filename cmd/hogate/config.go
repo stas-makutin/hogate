@@ -16,6 +16,7 @@ type Config struct {
 	Routes         *[]Route         `yaml:"routes"`
 	*Authorization `yaml:"authorization"`
 	*Credentials   `yaml:"credentials"`
+	*YandexHome    `yaml:"yandexHome"`
 	*ZwCmd         `yaml:"zwCmd"`
 }
 
@@ -98,6 +99,64 @@ type Client struct {
 	Scope       string `yaml:"scope,omitempty"`
 }
 
+type YandexHome struct {
+	Devices []YandexHomeDeviceConfig `yaml:"devices,omitempty"`
+}
+
+type YandexHomeDeviceConfig struct {
+	Id           string                       `yaml:"id"`
+	Name         string                       `yaml:"name"`
+	Description  string                       `yaml:"description,omitempty"`
+	Room         string                       `yaml:"room,omitempty"`
+	Type         string                       `yaml:"type"`
+	ZwId         byte                         `yaml:"zwid"`
+	Capabilities []YandexHomeCapabilityConfig `yaml:"capabilities,omitempty"`
+}
+
+type YandexHomeCapabilityConfig struct {
+	Retrievable bool
+	Parameters  interface{}
+}
+
+func (c *YandexHomeCapabilityConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var v map[string]bool
+	unmarshal(&v)
+	var ok bool
+	if c.Retrievable, ok = v["on_off"]; ok {
+		c.Parameters = YandexHomeParametersOnOff{}
+	} else if c.Retrievable, ok = v["mode"]; ok {
+		var p YandexHomeParametersModeConfig
+		if err := unmarshal(&p); err != nil {
+			return err
+		}
+		c.Parameters = p
+	} else if c.Retrievable, ok = v["range"]; ok {
+		var p YandexHomeParametersRangeConfig
+		if err := unmarshal(&p); err != nil {
+			return err
+		}
+		c.Parameters = p
+	}
+	return nil
+}
+
+type YandexHomeParametersOnOff struct {
+}
+
+type YandexHomeParametersModeConfig struct {
+	Instance string   `yaml:"instance"`
+	Values   []string `yaml:"values"`
+}
+
+type YandexHomeParametersRangeConfig struct {
+	Instance     string  `yaml:"instance"`
+	Unit         string  `yaml:"unit,omitempty"`
+	RandomAccess *bool   `yaml:"randomAccess,omitempty"`
+	Min          float64 `yaml:"min,omitempty"`
+	Max          float64 `yaml:"max,omitempty"`
+	Precision    float64 `yaml:"precision,omitempty"`
+}
+
 type ZwCmd struct {
 	Path    string `yaml:"path,omitempty"`
 	Timeout int    `yaml:"timeout,omitempty"`
@@ -123,6 +182,7 @@ func loadConfig(cfgFile string) error {
 		validateRouteConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,
+		validateYandexHomeConfig,
 		validateZwCmdConfig,
 	}
 	for _, v := range validate {

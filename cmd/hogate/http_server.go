@@ -141,7 +141,7 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 
 	var handler http.Handler = router
 	if config.HttpServer.Log != nil {
-		handler = logMiddleware(errorLog)(handler)
+		handler = logHandler(errorLog)(handler)
 	}
 
 	srv.server = &http.Server{
@@ -227,7 +227,7 @@ func httpAppendToLog(r *http.Request, message string) {
 	}
 }
 
-func logMiddleware(errorLog *log.Logger) func(http.Handler) http.Handler {
+func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now().Local()

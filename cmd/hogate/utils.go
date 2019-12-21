@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -136,4 +137,19 @@ func jsonEscape(i string) string {
 	}
 	s := string(b)
 	return s[1 : len(s)-1]
+}
+
+func parseJsonRequest(v interface{}, w http.ResponseWriter, r *http.Request) bool {
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "application/json") {
+		http.Error(w, http.StatusText(http.StatusUnsupportedMediaType), http.StatusForbidden)
+		return false
+	}
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(v); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return false
+	}
+	return true
 }
