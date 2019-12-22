@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -49,25 +50,34 @@ func validateYandexHomeConfig(cfgError configError) {
 					deviceError(fmt.Sprintf("capabilities, capability %v: %v", j, msg))
 				}
 
+				yhc := YandexHomeCapability{}
+				yhc.Retrievable = cap.Retrievable
+
 				switch cap.Parameters.(type) {
 				case YandexHomeParametersOnOff:
-					yhDevice.Capabilities = append(yhDevice.Capabilities, YandexHomeCapability{Type: yhDeviceCapOnOff, Retrievable: cap.Retrievable})
+					yhc.Type = yhDeviceCapOnOff
 				case YandexHomeParametersModeConfig:
-					yhc := YandexHomeCapability{
-						Type:        yhDeviceCapMode,
-						Retrievable: cap.Retrievable,
-						Parameters: YandexHomeCapabilityMode{
-							Instance: cap.Parameters.(YandexHomeParametersModeConfig).Instance,
-						},
+					p, err := parseCapabilityMode(cap.Parameters.(YandexHomeParametersModeConfig))
+					if err != nil {
+						capError(err.Error())
 					}
-					yhDevice.Capabilities = append(yhDevice.Capabilities, yhc)
+					yhc.Type = yhDeviceCapMode
+					yhc.Parameters = *p
 				case YandexHomeParametersRangeConfig:
+					p, err := parseCapabilityRange(cap.Parameters.(YandexHomeParametersRangeConfig))
+					if err != nil {
+						capError(err.Error())
+					}
+					yhc.Type = yhDeviceCapRange
+					yhc.Parameters = *p
 				default:
 					capError("invalid or unsupported.")
 				}
-
+				yhDevice.Capabilities = append(yhDevice.Capabilities, yhc)
 			}
 		}
+
+		yhDevices[yhDevice.Id] = yhDevice
 	}
 }
 
@@ -87,6 +97,73 @@ func parseDeviceType(t string) (string, bool) {
 	return "", false
 }
 
+func parseCapabilityMode(m YandexHomeParametersModeConfig) (*YandexHomeCapabilityMode, error) {
+	rv := YandexHomeCapabilityMode{
+		Instance: strings.ToLower(m.Instance),
+	}
+
+	var values *map[string]struct{}
+	switch rv.Instance {
+	case yhCapModeInstanceThermostat:
+		values = &map[string]struct{}{
+			yhModeThermostatAuto:    struct{}{},
+			yhModeThermostatCool:    struct{}{},
+			yhModeThermostatDry:     struct{}{},
+			yhModeThermostatEco:     struct{}{},
+			yhModeThermostatFanOnly: struct{}{},
+			yhModeThermostatHeat:    struct{}{},
+		}
+	case yhCapModeInstanceFanSpeed:
+		values = &map[string]struct{}{
+			yhModeFanSpeedAuto:   struct{}{},
+			yhModeFanSpeedHigh:   struct{}{},
+			yhModeFanSpeedLow:    struct{}{},
+			yhModeFanSpeedMedium: struct{}{},
+			yhModeFanSpeedQuiet:  struct{}{},
+			yhModeFanSpeedTurbo:  struct{}{},
+		}
+	default:
+		return nil, fmt.Errorf("unknown or not supported instance '%v'", m.Instance)
+	}
+
+	for _, v := range m.Values {
+		lv := strings.ToLower(v)
+		if _, ok := (*values)[lv]; !ok {
+			return nil, fmt.Errorf("unknown mode value '%v'", v)
+		}
+		rv.Modes = append(rv.Modes, YandexHomeCapabilityModeValue{Value: lv})
+	}
+
+	return &rv, nil
+}
+
+func parseCapabilityRange(r YandexHomeParametersRangeConfig) (*YandexHomeCapabilityRange, error) {
+	rv := YandexHomeCapabilityRange{
+		Instance: strings.ToLower(r.Instance),
+	}
+	rv.RandomAccess = r.RandomAccess == nil || *r.RandomAccess
+	rv.Range.Min = r.Min
+	rv.Range.Max = r.Max
+	rv.Range.Precision = r.Precision
+
+	switch rv.Instance {
+	case yhCapRangeInstanceTemperature:
+		switch strings.ToLower(r.Unit) {
+		case "celsius":
+			rv.Unit = yhRangeTemperatureUnitCelsius
+		case "kelvin":
+			rv.Unit = yhRangeTemperatureUnitKelvin
+		default:
+			return nil, fmt.Errorf("Invalid unit '%v'.", r.Unit)
+		}
+
+	default:
+		return nil, fmt.Errorf("unknown or not supported instance '%v'", r.Instance)
+	}
+
+	return &rv, nil
+}
+
 func addYandexHomeRoutes(router *http.ServeMux) {
 	handleDedicatedRoute(router, routeYandexHomeHealth, http.HandlerFunc(yandexHomeHealth))
 	handleDedicatedRoute(router, routeYandexHomeUnlink, authorizationHandler(scopeYandexHome)(http.HandlerFunc(yandexHomeUnlink)))
@@ -104,6 +181,21 @@ func yandexHomeUnlink(w http.ResponseWriter, r *http.Request) {
 }
 
 func yandexHomeDevices(w http.ResponseWriter, r *http.Request) {
+	claim := httpAuthorization(r)
+
+	devices := make([]YandexHomeDevice, 0, len(yhDevices))
+	for _, v := range yhDevices {
+		devices = append(devices, v)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(YandexHomeResponse{
+		RequestId: r.Header.Get("X-Request-Id"),
+		Payload: YandexHomeDevices{
+			UserId:  claim.UserName,
+			Devices: devices,
+		},
+	})
 }
 
 func yandexHomeQuery(w http.ResponseWriter, r *http.Request) {

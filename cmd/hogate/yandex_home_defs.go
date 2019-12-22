@@ -29,6 +29,50 @@ const (
 	yhDeviceCapToggle        = "devices.capabilities.toggle"
 )
 
+// Yandex Home mode capability instances
+const (
+	yhCapModeInstanceCleanup     = "cleanup_mode"
+	yhCapModeInstanceCoffee      = "coffee_mode"
+	yhCapModeInstanceFanSpeed    = "fan_speed"
+	yhCapModeInstanceInputSource = "input_source"
+	yhCapModeInstanceProgram     = "program"
+	yhCapModeInstanceSwing       = "swing"
+	yhCapModeInstanceThermostat  = "thermostat"
+	yhCapModeInstanceWorkSpeed   = "work_speed"
+)
+
+const (
+	yhModeThermostatAuto    = "auto"
+	yhModeThermostatCool    = "cool"
+	yhModeThermostatDry     = "dry"
+	yhModeThermostatEco     = "eco"
+	yhModeThermostatFanOnly = "fan_only"
+	yhModeThermostatHeat    = "heat"
+)
+
+const (
+	yhModeFanSpeedAuto   = "auto"
+	yhModeFanSpeedHigh   = "high"
+	yhModeFanSpeedLow    = "low"
+	yhModeFanSpeedMedium = "medium"
+	yhModeFanSpeedQuiet  = "quiet"
+	yhModeFanSpeedTurbo  = "turbo"
+)
+
+// Yandex Home range capability instances
+const (
+	yhCapRangeInstanceBrightness  = "brightness"
+	yhCapRangeInstanceChannel     = "channel"
+	yhCapRangeInstanceHumidity    = "humidity"
+	yhCapRangeInstanceTemperature = "temperature"
+	yhCapRangeInstanceVolume      = "volume"
+)
+
+const (
+	yhRangeTemperatureUnitCelsius = "unit.temperature.celsius"
+	yhRangeTemperatureUnitKelvin  = "unit.temperature.kelvin"
+)
+
 // Yandex Home device errors
 const (
 	yhDeviceErrorUnreachable               = "DEVICE_UNREACHABLE"
@@ -91,7 +135,7 @@ type YandexHomeCapabilityModeValue struct {
 type YandexHomeCapabilityRange struct {
 	Instance     string                         `json:"instance"`
 	Unit         string                         `json:"unit"`
-	RandomAccess string                         `json:"random_access"`
+	RandomAccess bool                           `json:"random_access"`
 	Range        YandexHomeCapabilityRangeValue `json:"range"`
 }
 

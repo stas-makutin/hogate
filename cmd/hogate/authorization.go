@@ -129,7 +129,7 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 }
 
 func httpAuthorization(r *http.Request) *AuthTokenClaims {
-	if claim, ok := r.Context().Value(httpLogMessage).(*AuthTokenClaims); ok {
+	if claim, ok := r.Context().Value(httpAuthorizationKey).(*AuthTokenClaims); ok {
 		return claim
 	}
 	return nil
