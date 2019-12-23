@@ -60,11 +60,8 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 			targetUrl += fmt.Sprintf(
 				"error=access_denied&error_description=The+request+denied.&state=%v", url.QueryEscape(state),
 			)
-			/*
-				w.Header().Set("Location", targetUrl)
-				w.WriteHeader(http.StatusFound)
-			*/
-			fmt.Fprintf(w, targetUrl)
+			w.Header().Set("Location", targetUrl)
+			w.WriteHeader(http.StatusFound)
 			return
 		}
 
@@ -80,11 +77,8 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 			targetUrl += fmt.Sprintf(
 				"code=%v&client_id=%v&scope=%v&state=%v", url.QueryEscape(code), url.QueryEscape(clientId), url.QueryEscape(scope), url.QueryEscape(state),
 			)
-			/*
-				w.Header().Set("Location", targetUrl)
-				w.WriteHeader(http.StatusFound)
-			*/
-			fmt.Fprintf(w, targetUrl)
+			w.Header().Set("Location", targetUrl)
+			w.WriteHeader(http.StatusFound)
 			return
 		} else {
 			message = "User unknown or has no permission."
