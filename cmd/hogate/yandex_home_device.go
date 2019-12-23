@@ -352,3 +352,106 @@ func (c yxhParamRange) yandex() YandexHomeCapabilityRange {
 
 	return rv
 }
+
+func (d yxhDevice) query() (rv YandexHomeDeviceState) {
+	rv.Id = d.id
+
+	for _, c := range d.capabilities {
+		if !c.retrievable {
+			continue
+		}
+
+		var capState *YandexHomeCapabilityState = nil
+		errorCode := ""
+
+		switch c.capType {
+		case yxhCapabilityOnOff:
+			switch d.devType {
+			case yxhDeviceTypeLight, yxhDeviceTypeSocket, yxhDeviceTypeSwitch:
+				capState, errorCode = yxhQueryBasicOnOff(d.zwId)
+			}
+		}
+
+		if errorCode != "" || capState == nil {
+			if errorCode == "" {
+				rv.ErrorCode = yhDeviceErrorInternal
+			} else {
+				rv.ErrorCode = errorCode
+			}
+			rv.Capabilities = []YandexHomeCapabilityState{}
+			break
+		} else {
+			rv.Capabilities = append(rv.Capabilities, *capState)
+		}
+	}
+
+	return
+}
+
+func (d yxhDevice) action(capabilities []YandexHomeCapabilityAction) (rv YandexHomeDeviceActionResult) {
+	rv.Id = d.id
+
+	for _, cap := range capabilities {
+		c := YandexHomeCapabilityActionResult{
+			Type: cap.Type,
+			State: YandexHomeInstanceResult{
+				Instance: cap.State.Instance,
+				ActionResult: YandexHomeActionResult{
+					Status:    yhDeviceStatusError,
+					ErrorCode: yhDeviceErrorInvalidAction,
+				},
+			},
+		}
+
+		if capType, instance, ok := parseActionCapability(cap.Type, cap.State.Instance); ok && d.validate(capType, instance) {
+			switch capType {
+			case yxhCapabilityOnOff:
+				if value, ok := cap.State.Value.(bool); ok {
+					c.State.ActionResult.ErrorCode = yxhActionBasicOnOff(d.zwId, value)
+				}
+			}
+		}
+
+		if c.State.ActionResult.ErrorCode == "" {
+			c.State.ActionResult.Status = yhDeviceStatusDone
+		}
+
+		rv.Capabilities = append(rv.Capabilities, c)
+	}
+
+	return
+}
+
+func (d yxhDevice) validate(t yxhCapabilityType, i yxhInstanceType) bool {
+	for _, c := range d.capabilities {
+		if c.capType == t {
+			switch t {
+			case yxhCapabilityOnOff:
+				return true
+			case yxhCapabilityMode:
+				if p, ok := c.parameters.(yxhParamMode); ok && p.instance == i {
+					return true
+				}
+			case yxhCapabilityRange:
+				if p, ok := c.parameters.(yxhParamRange); ok && p.instance == i {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func parseActionCapability(t string, i string) (yxhCapabilityType, yxhInstanceType, bool) {
+	switch t {
+	case yhDeviceCapOnOff:
+		if i == "on" {
+			return yxhCapabilityOnOff, 0, true
+		}
+	case yhDeviceCapMode:
+		return yxhCapabilityMode, 0, true
+	case yhDeviceCapRange:
+		return yxhCapabilityRange, 0, true
+	}
+	return 0, 0, false
+}

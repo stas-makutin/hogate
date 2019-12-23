@@ -27,6 +27,8 @@ const (
 	zwSystemError
 )
 
+type zwValues map[string]string
+
 var zwCommandLock sync.Mutex
 
 func validateZwCmdConfig(cfgError configError) {
@@ -51,9 +53,9 @@ func validateZwCmdConfig(cfgError configError) {
 	}
 }
 
-func zwCommand(arg ...string) (retCode int, attributes map[string]string) {
+func zwCommand(arg ...string) (retCode int, attributes zwValues) {
 	retCode = zwSystemError
-	attributes = make(map[string]string)
+	attributes = make(zwValues)
 
 	if zwCmd == "" {
 		return
@@ -66,6 +68,12 @@ func zwCommand(arg ...string) (retCode int, attributes map[string]string) {
 	defer cancel()
 
 	output, _ := exec.CommandContext(ctx, zwCmd, append([]string{"--timeout", strconv.Itoa(zwCommandTimeout), "--xml"}, arg...)...).Output()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		retCode = zwBusy
+		return
+	}
+
 	if output != nil {
 		r := bytes.NewReader(output)
 		d := xml.NewDecoder(r)

@@ -207,6 +207,7 @@ type YandexHomeCapabilityAction struct {
 
 type YandexHomeAction struct {
 	Instance string      `json:"instance"`
+	Relative bool        `json:"relative"`
 	Value    interface{} `json:"value"`
 }
 

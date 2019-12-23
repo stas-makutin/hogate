@@ -169,6 +169,7 @@ func authorizationHandler(scope ...scopeType) func(http.Handler) http.Handler {
 						}
 					}
 					if valid {
+						httpAppendToLog(r, fmt.Sprintf("auth{%v;%v}", claim.UserName, claim.ClientId))
 						next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey, claim)))
 						return
 					}
