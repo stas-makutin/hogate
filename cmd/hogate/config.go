@@ -150,7 +150,7 @@ type YandexHomeParametersModeConfig struct {
 
 type YandexHomeParametersRangeConfig struct {
 	Instance     string  `yaml:"instance"`
-	Unit         string  `yaml:"unit,omitempty"`
+	Units        string  `yaml:"units,omitempty"`
 	RandomAccess *bool   `yaml:"randomAccess,omitempty"`
 	Min          float64 `yaml:"min,omitempty"`
 	Max          float64 `yaml:"max,omitempty"`
