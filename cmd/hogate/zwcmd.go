@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -25,7 +27,7 @@ const (
 	zwSystemError
 )
 
-var zwCommandLock chan struct{} = make(chan struct{}, 1)
+var zwCommandLock sync.Mutex
 
 func validateZwCmdConfig(cfgError configError) {
 	if config.ZwCmd == nil {
@@ -57,54 +59,54 @@ func zwCommand(arg ...string) (retCode int, attributes map[string]string) {
 		return
 	}
 
-	select {
-	case zwCommandLock <- struct{}{}:
-		output, _ := exec.Command(zwCmd, append([]string{"--timeout", strconv.Itoa(zwCommandTimeout), "--xml"}, arg...)...).Output()
-		if output != nil {
-			r := bytes.NewReader(output)
-			d := xml.NewDecoder(r)
-			for {
-				t, err := d.Token()
-				if err != nil {
-					if err != io.EOF {
-						retCode = zwSystemError
-					}
-					break
+	zwCommandLock.Lock()
+	defer zwCommandLock.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(zwCommandTimeout))
+	defer cancel()
+
+	output, _ := exec.CommandContext(ctx, zwCmd, append([]string{"--timeout", strconv.Itoa(zwCommandTimeout), "--xml"}, arg...)...).Output()
+	if output != nil {
+		r := bytes.NewReader(output)
+		d := xml.NewDecoder(r)
+		for {
+			t, err := d.Token()
+			if err != nil {
+				if err != io.EOF {
+					retCode = zwSystemError
 				}
-				switch t := t.(type) {
-				case xml.StartElement:
-					if t.Name.Local == "zwt" {
-						for _, v := range t.Attr {
-							attributes[v.Name.Local] = v.Value
-							switch v.Name.Local {
-							case "success":
-								if v.Value == "1" {
-									retCode = zwSuccess
-								}
-							case "code":
-								switch v.Value {
-								case "0":
-									retCode = zwSuccess
-								case "2147483643":
-									retCode = zwQueryFailed
-								case "2147483644":
-									retCode = zwPortFailed
-								case "2147483645":
-									retCode = zwNoResources
-								case "2147483646":
-									retCode = zwNoParameter
-								default:
-									retCode = zwQueryFailed
-								}
+				break
+			}
+			switch t := t.(type) {
+			case xml.StartElement:
+				if t.Name.Local == "zwt" {
+					for _, v := range t.Attr {
+						attributes[v.Name.Local] = v.Value
+						switch v.Name.Local {
+						case "success":
+							if v.Value == "1" {
+								retCode = zwSuccess
+							}
+						case "code":
+							switch v.Value {
+							case "0":
+								retCode = zwSuccess
+							case "2147483643":
+								retCode = zwQueryFailed
+							case "2147483644":
+								retCode = zwPortFailed
+							case "2147483645":
+								retCode = zwNoResources
+							case "2147483646":
+								retCode = zwNoParameter
+							default:
+								retCode = zwQueryFailed
 							}
 						}
 					}
 				}
 			}
 		}
-		<-zwCommandLock
-	case <-time.After(time.Millisecond * time.Duration(zwCommandTimeout)):
-		retCode = zwBusy
 	}
 
 	return
