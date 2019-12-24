@@ -12,12 +12,13 @@ import (
 var config Config
 
 type Config struct {
-	HttpServer     HttpServerConfig `yaml:"httpServer"`
-	Routes         *[]Route         `yaml:"routes"`
-	*Authorization `yaml:"authorization"`
-	*Credentials   `yaml:"credentials"`
-	*YandexHome    `yaml:"yandexHome"`
-	*ZwCmd         `yaml:"zwCmd"`
+	WorkingDirectory string           `yaml:"workingDir,omitempty"`
+	HttpServer       HttpServerConfig `yaml:"httpServer"`
+	Routes           *[]Route         `yaml:"routes"`
+	*Authorization   `yaml:"authorization"`
+	*Credentials     `yaml:"credentials"`
+	*YandexHome      `yaml:"yandexHome"`
+	*ZwCmd           `yaml:"zwCmd"`
 }
 
 type HttpServerConfig struct {
@@ -177,6 +178,13 @@ func loadConfig(cfgFile string) error {
 	ce := func(msg string) {
 		errStr.WriteString(NewLine + msg)
 	}
+
+	if config.WorkingDirectory != "" {
+		if err := os.Chdir(config.WorkingDirectory); err != nil {
+			return fmt.Errorf("Unable to change working directory: %v", err)
+		}
+	}
+
 	validate := []func(cfgError configError){
 		validateHttpServerConfig,
 		validateRouteConfig,
