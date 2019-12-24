@@ -232,10 +232,13 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 			errorCode = "unauthorized_client"
 		} else if claims, err := parseAuthToken(refreshToken); err != nil || claims.Type != authTokenRefresh || claims.ClientId != clientId {
 			errorCode = "invalid_grant"
-		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) || !parsedScope.same(newScopeSet(claims.Scope...)) {
+		} else if originScope := newScopeSet(claims.Scope...); scope == "" {
+			successfulResponse(clientId, claims.UserName, originScope, true)
+			return
+		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) || !parsedScope.same(originScope) {
 			errorCode = "invalid_scope"
 		} else {
-			successfulResponse(clientId, claims.UserName, parsedScope, true)
+			successfulResponse(clientId, claims.UserName, originScope, true)
 			return
 		}
 
