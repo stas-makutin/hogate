@@ -46,8 +46,17 @@ func (r *logRotation) rotate(logFile string, errorLog *log.Logger) {
 				if err != nil {
 					errorLog.Printf("%vstatus file error: %v", errorPrefix, err)
 				}
-			} else if time.Now().Sub(sfi.ModTime()) > logCfg.MaxAgeDuration {
-				rotate = true
+			} else {
+				now := time.Now()
+				sfd := sfi.ModTime()
+				if now.Sub(sfd) > logCfg.MaxAgeDuration {
+					if logCfg.BackupDays == 0 {
+						rotate = true
+					} else if now.Year() != sfi.ModTime().Year() && now.Month() != sfi.ModTime().Month() && now.Day() != sfi.ModTime().Day() {
+						// prolong till the end of the day
+						rotate = true
+					}
+				}
 			}
 		}
 		if logCfg.MaxSizeBytes > 0 && fi.Size() > logCfg.MaxSizeBytes {
