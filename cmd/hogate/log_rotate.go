@@ -49,10 +49,10 @@ func (r *logRotation) rotate(logFile string, errorLog *log.Logger) {
 			} else {
 				now := time.Now()
 				sfd := sfi.ModTime()
-				if now.Sub(sfd) > logCfg.MaxAgeDuration {
+				if now.Sub(sfd) >= logCfg.MaxAgeDuration {
 					if logCfg.BackupDays == 0 {
 						rotate = true
-					} else if now.Year() != sfi.ModTime().Year() && now.Month() != sfi.ModTime().Month() && now.Day() != sfi.ModTime().Day() {
+					} else if now.Year() != sfi.ModTime().Year() || now.Month() != sfi.ModTime().Month() || now.Day() != sfi.ModTime().Day() {
 						// prolong till the end of the day
 						rotate = true
 					}
@@ -236,7 +236,7 @@ func (f *backupFiles) populate(logFile, extension string, errorLog *log.Logger) 
 func (f *backupFiles) enumFilesForDelete(currentDate string, processFile func(file backupFileInfo, files *[]string) bool) (files []string, currentOrdinal int) {
 	checkDate := true
 	for _, file := range f.files {
-		setOrdinal := true
+		setOrdinal := false
 		if checkDate {
 			rc := strings.Compare(currentDate, file.date)
 			switch {
