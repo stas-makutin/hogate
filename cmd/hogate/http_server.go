@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -25,6 +26,8 @@ type httpServer struct {
 	server *http.Server
 	lock   sync.Mutex
 }
+
+type logData map[string]map[string]string
 
 const httpLogMessage = "logMessage"
 
@@ -219,12 +222,29 @@ func (w *logResponseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func httpAppendToLog(r *http.Request, message string) {
-	if builder, ok := r.Context().Value(httpLogMessage).(*strings.Builder); ok {
-		if builder.Len() > 0 {
-			builder.WriteString("\n")
+func httpSetLogBulkData(r *http.Request, data logData) {
+	if d, ok := r.Context().Value(httpLogMessage).(logData); ok {
+		for gn, gv := range data {
+			g, ok := d[gn]
+			if !ok {
+				g = make(map[string]string)
+				d[gn] = g
+			}
+			for k, v := range gv {
+				g[k] = v
+			}
 		}
-		builder.WriteString(message)
+	}
+}
+
+func httpSetLogData(r *http.Request, group, key, value string) {
+	if d, ok := r.Context().Value(httpLogMessage).(logData); ok {
+		g, ok := d[group]
+		if !ok {
+			g = make(map[string]string)
+			d[group] = g
+		}
+		g[key] = value
 	}
 }
 
@@ -233,9 +253,16 @@ func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now().Local()
 			lrw := &logResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-			var bld strings.Builder
-			ctx := context.WithValue(r.Context(), httpLogMessage, &bld)
+			data := make(logData)
+			ctx := context.WithValue(r.Context(), httpLogMessage, data)
 			defer func() {
+				dataStr := ""
+				if len(data) > 0 {
+					if jb, err := json.Marshal(data); err == nil {
+						dataStr = string(jb)
+					}
+				}
+
 				record := []string{
 					start.Format("2006-01-02T15:04:05.999"),
 					strconv.FormatInt(int64(time.Now().Local().Sub(start)/time.Millisecond), 10),
@@ -248,7 +275,7 @@ func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 					r.Header.Get("X-Request-Id"),
 					strconv.Itoa(lrw.statusCode),
 					strconv.FormatInt(lrw.contentLength, 10),
-					bld.String(),
+					dataStr,
 				}
 
 				var b bytes.Buffer
