@@ -12,16 +12,19 @@ type scopeType uint16
 
 const (
 	scopeYandexHome = scopeType(iota)
+	scopeYandexDialogs
 )
 
 type scopeSet map[scopeType]struct{}
 
 var scopeNames = map[scopeType]string{
-	scopeYandexHome: "yandex-home",
+	scopeYandexHome:    "yandex-home",
+	scopeYandexDialogs: "yandex-dialogs",
 }
 
 var scopeDisplayNames = map[scopeType]string{
-	scopeYandexHome: "Yandex Home",
+	scopeYandexHome:    "Yandex Home",
+	scopeYandexDialogs: "Yandex Dialogs",
 }
 
 type userInfo struct {

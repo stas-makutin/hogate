@@ -18,6 +18,7 @@ type Config struct {
 	*Authorization   `yaml:"authorization"`
 	*Credentials     `yaml:"credentials"`
 	*YandexHome      `yaml:"yandexHome"`
+	*YandexDialogs   `yaml:"yandexDialogs"`
 	*ZwCmd           `yaml:"zwCmd"`
 }
 
@@ -158,6 +159,19 @@ type YandexHomeParametersRangeConfig struct {
 	Precision    float64 `yaml:"precision,omitempty"`
 }
 
+type YandexDialogs struct {
+	Tales []YandexDialogsTale `yaml:"tales,omitempty"`
+}
+
+type YandexDialogsTale struct {
+	Name    string   `yaml:"name"`
+	TtsName string   `yaml:"ttsName,omitempty"`
+	Keys    []string `yaml:"keys,omitempty"`
+	Type    string   `yaml:"type"`
+	Length  uint32   `yaml:"length"`
+	Parts   []string `yaml:"parts"`
+}
+
 type ZwCmd struct {
 	Path    string `yaml:"path,omitempty"`
 	Timeout int    `yaml:"timeout,omitempty"`
@@ -192,6 +206,7 @@ func loadConfig(cfgFile string) error {
 		validateAuthorizationConfig,
 		validateYandexHomeConfig,
 		validateZwCmdConfig,
+		validateYandexDialogsTalesConfig,
 	}
 	for _, v := range validate {
 		v(ce)

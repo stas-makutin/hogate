@@ -14,11 +14,14 @@ import (
 const (
 	routeOAuthAuthorize = iota
 	routeOAuthToken
+
 	routeYandexHomeHealth
 	routeYandexHomeUnlink
 	routeYandexHomeDevices
 	routeYandexHomeQuery
 	routeYandexHomeAction
+
+	routeYandexDialogsTales
 )
 
 type routeInfo struct {
@@ -44,6 +47,7 @@ var dedicatedRoutes = map[int]*routeInfo{
 		maxBodySize: 8196,
 		methods:     []string{"GET", "POST", "OPTIONS"},
 	},
+
 	routeYandexHomeHealth: {
 		path:        "/yandex/home/v1.0",
 		rateLimit:   50,
@@ -77,6 +81,14 @@ var dedicatedRoutes = map[int]*routeInfo{
 		rateLimit:   0,
 		rateBurst:   0,
 		maxBodySize: 512000,
+		methods:     []string{"POST", "OPTIONS"},
+	},
+
+	routeYandexDialogsTales: {
+		path:        "/yandex/dialogs/tales",
+		rateLimit:   1000,
+		rateBurst:   300,
+		maxBodySize: 102400,
 		methods:     []string{"POST", "OPTIONS"},
 	},
 }

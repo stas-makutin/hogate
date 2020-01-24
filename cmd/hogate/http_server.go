@@ -142,6 +142,7 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 
 	addOAuthRoutes(router)
 	addYandexHomeRoutes(router)
+	addYandexDialogsRoutes(router)
 
 	var handler http.Handler = router
 	if config.HttpServer.Log != nil {
