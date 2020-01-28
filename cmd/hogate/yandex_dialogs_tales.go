@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,6 +62,8 @@ type yandexDialogsTalesSelect struct {
 }
 
 var ydtFileTypes map[ydtFileType][]yandexDialogsTalesFile
+
+var ydtRand *rand.Rand = nil
 
 const ydtMaxSessions = uint32(1000)
 
@@ -171,12 +174,24 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case ydtReactionNext:
+		state = yandexDialogsTalesReactionNext(&resp.Response, state)
 
 	case ydtReactionPrevious:
+		state = yandexDialogsTalesReactionPrevious(&resp.Response, state)
 
 	case ydtReactionSelect:
+		if sel, ok := reactionData.(yandexDialogsTalesSelect); ok {
+			state = yandexDialogsTalesReactionSelect(&resp.Response, sel.fileType, sel.index, sel.relative, state)
+		} else {
+			resp.Response.Text = errorText
+		}
 
 	case ydtReactionRandom:
+		if fileType, ok := reactionData.(ydtFileType); ok {
+			state = yandexDialogsTalesReactionRandom(&resp.Response, fileType)
+		} else {
+			resp.Response.Text = errorText
+		}
 
 	default: // ydtReactionNone
 		if req.Session.New {
@@ -269,33 +284,110 @@ func yandexDialogsTalesReactionOverview(r *YandexDialogsResponse, fileType ydtFi
 
 func yandexDialogsTalesReactionSlice(r *YandexDialogsResponse, fileType ydtFileType, index, length int) interface{} {
 	var bt strings.Builder
-	if f, ok := ydtFileTypes[fileType]; ok && len(f) > 0 {
+	if f, ok := ydtFileTypes[fileType]; ok {
 		c := len(f)
-		if index >= c {
+		if c > 0 && index >= c && length > 0 {
+			if index+length > c {
+				length = c - index
+			}
+			if length == 1 {
+				t, r := yandexDialogsTalesFileTypeName(fileType, 1)
+				bt.WriteString(yandexDialogsTalesSequence(index+1, r, 0))
+				bt.WriteString(" ")
+				bt.WriteString(t)
+			} else {
+				t, r := "стишки", -1
+				if fileType != ydtTypeVerse {
+					t, r = yandexDialogsTalesFileTypeName(fileType, 2)
+				}
+				bt.WriteString(t)
+				bt.WriteString(" с ")
+				bt.WriteString(yandexDialogsTalesSequence(index+1, r, 2))
+				bt.WriteString(" по ")
+				bt.WriteString(yandexDialogsTalesSequence(index+length, r, 1))
+			}
+			bt.WriteString(":")
 
+			for i := index; i < index+length; i++ {
+				bt.WriteString("\n")
+				bt.WriteString(f[i].name)
+			}
+
+			r.Text = bt.String()
+			return yandexDialogsTalesSlice{yandexDialogsTalesItem{fileType, index}, length}
 		}
-		/*
-
-			t, r := yandexDialogsTalesFileTypeName(*fileType, c)
-			bt.WriteString("У меня есть ")
-
-			bt.WriteString(yandexDialogsTalesNumber(c, r))
-			bt.WriteString(" ")
-			bt.WriteString(t)
-		*/
-
-		// TODO - list first 3
-
-	} else {
-		t, _ := yandexDialogsTalesFileTypeName(fileType, 0)
-		bt.WriteString("Пока у меня нет ")
-		bt.WriteString(t)
 	}
+
+	t, _ := yandexDialogsTalesFileTypeName(fileType, 0)
+	bt.WriteString("Пока у меня нет ")
+	bt.WriteString(t)
+	r.Text = bt.String()
 	return nil
 }
 
 func yandexDialogsTalesReactionList(r *YandexDialogsResponse, list []yandexDialogsTalesItem) interface{} {
+	var bt strings.Builder
+
+	bt.WriteString("У меня есть:")
+	for _, item := range list {
+		if f, ok := ydtFileTypes[item.fileType]; ok && item.index < len(f) {
+			t, _ := yandexDialogsTalesFileTypeName(item.fileType, 1)
+			bt.WriteString("\n")
+			bt.WriteString(t)
+			bt.WriteString(" ")
+			bt.WriteString(f[item.index].name)
+		}
+	}
+
+	r.Text = bt.String()
+	return list
+}
+
+func yandexDialogsTalesReactionNext(r *YandexDialogsResponse, state interface{}) interface{} {
 	return nil
+}
+
+func yandexDialogsTalesReactionPrevious(r *YandexDialogsResponse, state interface{}) interface{} {
+	return nil
+}
+
+func yandexDialogsTalesReactionSelect(r *YandexDialogsResponse, fileType ydtFileType, index int, relative bool, state interface{}) interface{} {
+	return nil
+}
+
+func yandexDialogsTalesReactionRandom(r *YandexDialogsResponse, fileType ydtFileType) interface{} {
+	if len(ydtFileTypes) <= 0 {
+		return yandexDialogsTalesReactionOverview(r, ydtTypeUnknown)
+	}
+
+	if ydtRand == nil {
+		ydtRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+
+	if fileType == ydtTypeUnknown {
+		fileType = ydtFileType(ydtRand.Intn(int(ydtTypeJoke)) + 1)
+		o := fileType
+		for {
+			if _, ok := ydtFileTypes[fileType]; ok {
+				break
+			}
+			if fileType == ydtTypeJoke {
+				fileType = ydtTypeFairyTale
+			} else {
+				fileType++
+			}
+			if fileType == o {
+				return yandexDialogsTalesReactionOverview(r, ydtTypeUnknown)
+			}
+		}
+	}
+
+	if f, ok := ydtFileTypes[fileType]; ok && len(f) > 0 {
+		index := ydtRand.Intn(len(f))
+		return yandexDialogsTalesReactionSelect(r, fileType, index, false, nil)
+	}
+
+	return yandexDialogsTalesReactionOverview(r, fileType)
 }
 
 var ydtwmDone = map[string]struct{}{
@@ -314,6 +406,7 @@ var ydtwmPrevious = map[string]struct{}{
 var ydtwmRandom = map[string]struct{}{
 	"что-нибудь": struct{}{}, "случайно": struct{}{}, "случайную": struct{}{}, "случайная": struct{}{}, "случайный": struct{}{},
 	"любой": struct{}{}, "любую": struct{}{}, "любое": struct{}{},
+	"какую-нибудь": struct{}{}, "какой-нибудь": struct{}{}, "какое-нибудь": struct{}{},
 }
 
 var ydtwmOverview = map[string]struct{}{
@@ -498,4 +591,62 @@ func yandexDialogsTalesNumber(n, r int) string {
 		}
 	}
 	return strconv.Itoa(n)
+}
+
+func yandexDialogsTalesSequence(n, r, c int) (text string) {
+	text = strconv.Itoa(n) + "-"
+	m := n % 20
+	switch {
+	case r > 0:
+		switch c {
+		default: // какая?
+			switch {
+			case m == 3:
+				text += "ья"
+			default:
+				text += "ая"
+			}
+		case 1: // какую?
+			switch {
+			case m == 3:
+				text += "ью"
+			default:
+				text += "ую"
+			}
+		case 2: // какой?
+			switch {
+			case m == 3:
+				text += "ей"
+			default:
+				text += "ой"
+			}
+		}
+	case r < 0:
+		switch c {
+		default: // какой?
+			switch {
+			case n == 0 || m == 2:
+				text += "ой"
+			case m == 3:
+				text += "ий"
+			default:
+				text += "ый"
+			}
+		case 2: // какого?
+			text += "го"
+		}
+	default:
+		switch c {
+		default: // какое?
+			switch {
+			case m == 3:
+				text += "ее"
+			default:
+				text += "ое"
+			}
+		case 2: // какого?
+			text += "го"
+		}
+	}
+	return
 }
