@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 type ydtFileType uint16
@@ -106,7 +107,7 @@ func validateYandexDialogsTalesConfig(cfgError configError) {
 
 		if len(file.keys) <= 0 {
 			for _, k := range strings.Fields(strings.ToLower(file.name)) {
-				if len(k) > 2 {
+				if utf8.RuneCountInString(k) > 2 {
 					file.keys = append(file.keys, k)
 				}
 			}
@@ -207,8 +208,9 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		if req.Session.New {
 			state = nil
 			resp.Response.Text = "Что бы вам рассказать?"
+			resp.Response.Buttons = append(resp.Response.Buttons, YandexDialogsButton{Title: "А что есть?"})
 		} else {
-			resp.Response.Text = "Я вас не поняла, повторите пожалуйста."
+			state = yandexDialogsTalesReactionNotRecognized(&resp.Response, state)
 		}
 	}
 
@@ -260,6 +262,11 @@ func yandexDialogsTalesSetSession(sessionId string, sessionExists bool, state in
 	}
 }
 
+func yandexDialogsTalesReactionNotRecognized(r *YandexDialogsResponse, state interface{}) interface{} {
+	r.Text = "Я вас не поняла, повторите пожалуйста."
+	return state
+}
+
 func yandexDialogsTalesReactionOverview(r *YandexDialogsResponse, fileType ydtFileType) interface{} {
 	var bt strings.Builder
 	if fileType == ydtTypeUnknown {
@@ -275,15 +282,19 @@ func yandexDialogsTalesReactionOverview(r *YandexDialogsResponse, fileType ydtFi
 			}
 			none = false
 
-			t, r := yandexDialogsTalesFileTypeName(k, c)
-			bt.WriteString(yandexDialogsTalesNumber(c, r))
+			t, g := yandexDialogsTalesFileTypeName(k, c)
+			bt.WriteString(yandexDialogsTalesNumber(c, g))
 			bt.WriteString(" ")
 			bt.WriteString(t)
+
+			t, _ = yandexDialogsTalesFileTypeName(k, 0)
+			r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "Список " + t})
 		}
 
 		if none {
 			bt.Reset()
 			bt.WriteString("Пока у меня ничего нет")
+			r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "Выйти"})
 		}
 	} else {
 		if _, ok := ydtFileTypes[fileType]; ok {
@@ -292,6 +303,7 @@ func yandexDialogsTalesReactionOverview(r *YandexDialogsResponse, fileType ydtFi
 		t, _ := yandexDialogsTalesFileTypeName(fileType, 0)
 		bt.WriteString("У меня пока нет никаких ")
 		bt.WriteString(t)
+		r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "А что есть?"})
 	}
 	r.Text = bt.String()
 	return nil
@@ -302,30 +314,39 @@ func yandexDialogsTalesReactionSlice(r *YandexDialogsResponse, fileType ydtFileT
 	if f, ok := ydtFileTypes[fileType]; ok {
 		c := len(f)
 		if c > 0 && index >= 0 && index < c && length > 0 {
-			if index+length > c {
-				length = c - index
+			l := length
+			if index+l > c {
+				l = c - index
 			}
-			if length == 1 {
-				t, r := yandexDialogsTalesFileTypeName(fileType, 1)
-				bt.WriteString(yandexDialogsTalesSequence(index+1, r, 0))
+			t, g := "", -1
+			if l == 1 {
+				t, g = yandexDialogsTalesFileTypeName(fileType, 1)
+				bt.WriteString(yandexDialogsTalesSequence(index+1, g, 0))
 				bt.WriteString(" ")
 				bt.WriteString(t)
 			} else {
-				t, r := "стишки", -1
+				t, g = "стишки", -1
 				if fileType != ydtTypeVerse {
-					t, r = yandexDialogsTalesFileTypeName(fileType, 2)
+					t, g = yandexDialogsTalesFileTypeName(fileType, 2)
 				}
 				bt.WriteString(t)
 				bt.WriteString(" с ")
-				bt.WriteString(yandexDialogsTalesSequence(index+1, r, 2))
+				bt.WriteString(yandexDialogsTalesSequence(index+1, g, 2))
 				bt.WriteString(" по ")
-				bt.WriteString(yandexDialogsTalesSequence(index+length, r, 1))
+				bt.WriteString(yandexDialogsTalesSequence(index+l, g, 1))
 			}
 			bt.WriteString(":")
 
-			for i := index; i < index+length; i++ {
+			for i := index; i < index+l; i++ {
 				bt.WriteString("\n")
 				bt.WriteString(f[i].name)
+				r.Buttons = append(r.Buttons, YandexDialogsButton{Title: yandexDialogsTalesSequence(i-index+1, g, 0)})
+			}
+			if index > 0 {
+				r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "предыдущие"})
+			}
+			if index+l < c {
+				r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "следующие"})
 			}
 
 			r.Text = bt.String()
@@ -337,6 +358,7 @@ func yandexDialogsTalesReactionSlice(r *YandexDialogsResponse, fileType ydtFileT
 	bt.WriteString("У меня больше нет ")
 	bt.WriteString(t)
 	r.Text = bt.String()
+	r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "А что есть?"})
 	return nil
 }
 
@@ -344,13 +366,14 @@ func yandexDialogsTalesReactionList(r *YandexDialogsResponse, list []yandexDialo
 	var bt strings.Builder
 
 	bt.WriteString("У меня есть:")
-	for _, item := range list {
+	for i, item := range list {
 		if f, ok := ydtFileTypes[item.fileType]; ok && item.index < len(f) {
-			t, _ := yandexDialogsTalesFileTypeName(item.fileType, 1)
+			t, g := yandexDialogsTalesFileTypeName(item.fileType, 1)
 			bt.WriteString("\n")
 			bt.WriteString(t)
 			bt.WriteString(" ")
 			bt.WriteString(f[item.index].name)
+			r.Buttons = append(r.Buttons, YandexDialogsButton{Title: yandexDialogsTalesSequence(i+1, g, 0)})
 		}
 	}
 
@@ -366,7 +389,7 @@ func yandexDialogsTalesReactionNext(r *YandexDialogsResponse, state interface{})
 		}
 		return s
 	}
-	return nil
+	return yandexDialogsTalesReactionNotRecognized(r, state)
 }
 
 func yandexDialogsTalesReactionPrevious(r *YandexDialogsResponse, state interface{}) interface{} {
@@ -377,7 +400,7 @@ func yandexDialogsTalesReactionPrevious(r *YandexDialogsResponse, state interfac
 		}
 		return s
 	}
-	return nil
+	return yandexDialogsTalesReactionNotRecognized(r, state)
 }
 
 func yandexDialogsTalesReactionRepeat(r *YandexDialogsResponse, state interface{}) interface{} {
@@ -417,6 +440,7 @@ func yandexDialogsTalesReactionSelect(r *YandexDialogsResponse, fileType ydtFile
 			bt.WriteString(f[index].name)
 
 			r.Text = bt.String()
+			r.Buttons = append(r.Buttons, YandexDialogsButton{Title: "Хватит"})
 
 			return yandexDialogsTalesItem{fileType, index}
 		}
@@ -478,6 +502,12 @@ var ydtwmUntil = map[string]struct{}{
 	"по": struct{}{}, "до": struct{}{},
 }
 
+var ydtwmPlay = map[string]struct{}{
+	"расскажи": struct{}{}, "рассказать": struct{}{}, "рассказывай": struct{}{},
+	"давай": struct{}{},
+	"спой":  struct{}{}, "спеть": struct{}{},
+}
+
 var ydtwmRandom = map[string]struct{}{
 	"что-нибудь": struct{}{}, "случайно": struct{}{}, "случайную": struct{}{}, "случайная": struct{}{}, "случайный": struct{}{},
 	"любой": struct{}{}, "любую": struct{}{}, "любое": struct{}{},
@@ -493,7 +523,7 @@ var ydtwmFileType = map[string]ydtFileType{
 	"сказка": ydtTypeFairyTale, "сказки": ydtTypeFairyTale, "сказке": ydtTypeFairyTale, "сказкой": ydtTypeFairyTale, "сказку": ydtTypeFairyTale, "сказок": ydtTypeFairyTale, "сказками": ydtTypeFairyTale,
 	"история": ydtTypeStory, "истории": ydtTypeStory, "историей": ydtTypeStory, "историй": ydtTypeStory, "историю": ydtTypeStory,
 	"песня": ydtTypeSong, "песни": ydtTypeSong, "песне": ydtTypeSong, "песней": ydtTypeSong, "песен": ydtTypeSong, "песню": ydtTypeSong,
-	"стишок": ydtTypeVerse, "стишка": ydtTypeVerse, "стишку": ydtTypeVerse, "стишком": ydtTypeVerse, "стишке": ydtTypeVerse, "стишки": ydtTypeVerse,
+	"стишок": ydtTypeVerse, "стишка": ydtTypeVerse, "стишку": ydtTypeVerse, "стишком": ydtTypeVerse, "стишков": ydtTypeVerse, "стишки": ydtTypeVerse,
 	"шутка": ydtTypeJoke, "шутки": ydtTypeJoke, "шутке": ydtTypeJoke, "шуткой": ydtTypeJoke, "шуток": ydtTypeJoke, "шутку": ydtTypeSong,
 }
 
@@ -505,6 +535,7 @@ func yandexDialogsTalesReaction(r YandexDialogsRequest) (ydtReaction, interface{
 	var overviewState bool = false
 	var randomState bool = false
 	var untilState bool = false
+	var playState bool = false
 	var firstNumber int = 0
 	var secondNumber int = 0
 	var fileType ydtFileType = ydtTypeUnknown
@@ -541,6 +572,8 @@ func yandexDialogsTalesReaction(r YandexDialogsRequest) (ydtReaction, interface{
 			randomState = true
 		} else if _, ok := ydtwmUntil[t]; ok {
 			untilState = true
+		} else if _, ok := ydtwmPlay[t]; ok {
+			playState = true
 		} else if n, err := strconv.Atoi(t); err == nil && n > 0 {
 			if firstNumber == 0 {
 				firstNumber = n
@@ -566,6 +599,9 @@ func yandexDialogsTalesReaction(r YandexDialogsRequest) (ydtReaction, interface{
 	}
 	if firstNumber > 0 {
 		return ydtReactionSelect, yandexDialogsTalesSelect{yandexDialogsTalesItem{fileType, firstNumber - 1}, true}
+	}
+	if playState {
+		return ydtReactionSelect, yandexDialogsTalesSelect{yandexDialogsTalesItem{fileType, 0}, true}
 	}
 	if overviewState || (len(r.Nlu.Tokens) == 1 && fileType != ydtTypeUnknown) {
 		return ydtReactionOverview, fileType
