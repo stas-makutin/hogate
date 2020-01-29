@@ -164,12 +164,11 @@ type YandexDialogs struct {
 }
 
 type YandexDialogsTale struct {
-	Name    string   `yaml:"name"`
-	TtsName string   `yaml:"ttsName,omitempty"`
-	Keys    []string `yaml:"keys,omitempty"`
-	Type    string   `yaml:"type"`
-	Length  uint32   `yaml:"length"`
-	Parts   []string `yaml:"parts"`
+	Name   string   `yaml:"name"`
+	Keys   []string `yaml:"keys,omitempty"`
+	Type   string   `yaml:"type"`
+	Length uint32   `yaml:"length"`
+	Parts  []string `yaml:"parts"`
 }
 
 type ZwCmd struct {
