@@ -13,6 +13,14 @@ import (
 	"unicode/utf8"
 )
 
+type YandexDialogsTale struct {
+	Name   string   `yaml:"name"`
+	Keys   []string `yaml:"keys,omitempty"`
+	Type   string   `yaml:"type"`
+	Length uint32   `yaml:"length"`
+	Parts  []string `yaml:"parts"`
+}
+
 type ydtFileType uint16
 
 const (
@@ -84,11 +92,16 @@ func init() {
 
 func validateYandexDialogsTalesConfig(cfgError configError) {
 	ydtFileTypes = make(map[ydtFileType][]yandexDialogsTalesFile)
-	if config.YandexDialogs == nil {
+	if config.YandexDialogs == nil || config.YandexDialogs.Tales == "" {
+		return
+	}
+	var tales []YandexDialogsTale
+	if err := loadSubConfig(config.YandexDialogs.Tales, &tales); err != nil {
+		cfgError(fmt.Sprintf("yandexDialogs.tales, unable to load configuration file '%v': %v", config.YandexDialogs.Tales, err))
 		return
 	}
 
-	for i, tale := range config.YandexDialogs.Tales {
+	for i, tale := range tales {
 		taleError := func(msg string) {
 			cfgError(fmt.Sprintf("yandexDialogs.tales, tale %v: %v", i, msg))
 		}

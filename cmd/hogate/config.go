@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 )
 
 var config Config
+var configPath string
 
 type Config struct {
 	WorkingDirectory string           `yaml:"workingDir,omitempty"`
@@ -160,15 +162,7 @@ type YandexHomeParametersRangeConfig struct {
 }
 
 type YandexDialogs struct {
-	Tales []YandexDialogsTale `yaml:"tales,omitempty"`
-}
-
-type YandexDialogsTale struct {
-	Name   string   `yaml:"name"`
-	Keys   []string `yaml:"keys,omitempty"`
-	Type   string   `yaml:"type"`
-	Length uint32   `yaml:"length"`
-	Parts  []string `yaml:"parts"`
+	Tales string `yaml:"tales,omitempty"`
 }
 
 type ZwCmd struct {
@@ -192,6 +186,8 @@ func loadConfig(cfgFile string) error {
 		errStr.WriteString(NewLine + msg)
 	}
 
+	configPath = filepath.Dir(cfgFile)
+
 	if config.WorkingDirectory != "" {
 		if err := os.Chdir(config.WorkingDirectory); err != nil {
 			return fmt.Errorf("Unable to change working directory: %v", err)
@@ -213,6 +209,21 @@ func loadConfig(cfgFile string) error {
 	config = Config{HttpServer: config.HttpServer}
 	if errStr.Len() > 0 {
 		return fmt.Errorf("The configuration file is invalid:%v", errStr.String())
+	}
+	return nil
+}
+
+func loadSubConfig(subCfgFile string, cfg interface{}) error {
+	if !filepath.IsAbs(subCfgFile) {
+		subCfgFile = filepath.Join(configPath, subCfgFile)
+	}
+	file, err := os.Open(subCfgFile)
+	if err != nil {
+		return err
+	}
+	err = yaml.NewDecoder(file).Decode(cfg)
+	if err != nil {
+		return err
 	}
 	return nil
 }
