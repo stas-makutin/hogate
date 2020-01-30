@@ -158,8 +158,6 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, sessionExists := yandexDialogsTalesGetSession(req.Session.SessionId)
-
 	resp := YandexDialogsResponseEnvelope{
 		Session: YandexDialogsResponseSession{
 			SessionId: req.Session.SessionId,
@@ -169,67 +167,83 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		Version: "1.0",
 	}
 
-	errorText := "Что-то пошло не так"
+	if status, _ := testAuthorization(r, scopeYandexDialogs); status != http.StatusOK {
 
-	reaction, reactionData := yandexDialogsTalesReaction(req.Request)
-	switch reaction {
-	case ydtReactionDone:
-		state = nil
-		resp.Response.Text = "Пока"
-		resp.Response.EndSession = true
+		resp.AccountLinking = &struct{}{}
 
-	case ydtReactionOverview:
-		fileType, _ := reactionData.(ydtFileType)
-		state = yandexDialogsTalesReactionOverview(&resp.Response, req.Session.SkillId, fileType)
+	} else {
+		state, sessionExists := yandexDialogsTalesGetSession(req.Session.SessionId)
 
-	case ydtReactionSlice:
-		if slice, ok := reactionData.(yandexDialogsTalesSlice); ok {
-			state = yandexDialogsTalesReactionSlice(&resp.Response, req.Session.SkillId, slice.fileType, slice.index, slice.length)
-		} else {
-			resp.Response.Text = errorText
+		if req.AccountLinking != nil {
+			req.Session.New = true
 		}
+		resp.Response = &YandexDialogsResponse{}
 
-	case ydtReactionList:
-		if list, ok := reactionData.([]yandexDialogsTalesItem); ok {
-			state = yandexDialogsTalesReactionList(&resp.Response, req.Session.SkillId, list)
-		} else {
-			resp.Response.Text = errorText
+		errorText := "Что-то пошло не так"
+
+		reaction, reactionData := ydtReactionNone, interface{}(nil)
+		if req.Request != nil {
+			reaction, reactionData = yandexDialogsTalesReaction(*req.Request)
 		}
-
-	case ydtReactionNext:
-		state = yandexDialogsTalesReactionNext(&resp.Response, req.Session.SkillId, state)
-
-	case ydtReactionPrevious:
-		state = yandexDialogsTalesReactionPrevious(&resp.Response, req.Session.SkillId, state)
-
-	case ydtReactionRepeat:
-		state = yandexDialogsTalesReactionRepeat(&resp.Response, req.Session.SkillId, state)
-
-	case ydtReactionSelect:
-		if sel, ok := reactionData.(yandexDialogsTalesSelect); ok {
-			state = yandexDialogsTalesReactionSelect(&resp.Response, req.Session.SkillId, sel.fileType, sel.index, sel.relative, state)
-		} else {
-			resp.Response.Text = errorText
-		}
-
-	case ydtReactionRandom:
-		if fileType, ok := reactionData.(ydtFileType); ok {
-			state = yandexDialogsTalesReactionRandom(&resp.Response, req.Session.SkillId, fileType)
-		} else {
-			resp.Response.Text = errorText
-		}
-
-	default: // ydtReactionNone
-		if req.Session.New {
+		switch reaction {
+		case ydtReactionDone:
 			state = nil
-			resp.Response.Text = "Что бы вам рассказать?"
-			resp.Response.Buttons = append(resp.Response.Buttons, YandexDialogsButton{Title: "А что есть?"})
-		} else {
-			state = yandexDialogsTalesReactionNotRecognized(&resp.Response, req.Session.SkillId, state)
-		}
-	}
+			resp.Response.Text = "Пока"
+			resp.Response.EndSession = true
 
-	yandexDialogsTalesSetSession(req.Session.SessionId, sessionExists, state)
+		case ydtReactionOverview:
+			fileType, _ := reactionData.(ydtFileType)
+			state = yandexDialogsTalesReactionOverview(resp.Response, req.Session.SkillId, fileType)
+
+		case ydtReactionSlice:
+			if slice, ok := reactionData.(yandexDialogsTalesSlice); ok {
+				state = yandexDialogsTalesReactionSlice(resp.Response, req.Session.SkillId, slice.fileType, slice.index, slice.length)
+			} else {
+				resp.Response.Text = errorText
+			}
+
+		case ydtReactionList:
+			if list, ok := reactionData.([]yandexDialogsTalesItem); ok {
+				state = yandexDialogsTalesReactionList(resp.Response, req.Session.SkillId, list)
+			} else {
+				resp.Response.Text = errorText
+			}
+
+		case ydtReactionNext:
+			state = yandexDialogsTalesReactionNext(resp.Response, req.Session.SkillId, state)
+
+		case ydtReactionPrevious:
+			state = yandexDialogsTalesReactionPrevious(resp.Response, req.Session.SkillId, state)
+
+		case ydtReactionRepeat:
+			state = yandexDialogsTalesReactionRepeat(resp.Response, req.Session.SkillId, state)
+
+		case ydtReactionSelect:
+			if sel, ok := reactionData.(yandexDialogsTalesSelect); ok {
+				state = yandexDialogsTalesReactionSelect(resp.Response, req.Session.SkillId, sel.fileType, sel.index, sel.relative, state)
+			} else {
+				resp.Response.Text = errorText
+			}
+
+		case ydtReactionRandom:
+			if fileType, ok := reactionData.(ydtFileType); ok {
+				state = yandexDialogsTalesReactionRandom(resp.Response, req.Session.SkillId, fileType)
+			} else {
+				resp.Response.Text = errorText
+			}
+
+		default: // ydtReactionNone
+			if req.Session.New {
+				state = nil
+				resp.Response.Text = "Что бы вам рассказать?"
+				resp.Response.Buttons = append(resp.Response.Buttons, YandexDialogsButton{Title: "А что есть?"})
+			} else {
+				state = yandexDialogsTalesReactionNotRecognized(resp.Response, req.Session.SkillId, state)
+			}
+		}
+
+		yandexDialogsTalesSetSession(req.Session.SessionId, sessionExists, state)
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(resp)

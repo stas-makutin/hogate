@@ -3,10 +3,11 @@ package main
 // request
 
 type YandexDialogsRequestEnvelope struct {
-	Meta    YandexDialogsMeta           `json:"meta"`
-	Request YandexDialogsRequest        `json:"request"`
-	Session YandexDialogsRequestSession `json:"session"`
-	Version string                      `json:"version"`
+	Meta           *YandexDialogsMeta          `json:"meta,omitempty"`
+	Request        *YandexDialogsRequest       `json:"request,omitempty"`
+	AccountLinking *struct{}                   `json:"account_linking_complete_event,omitempty"`
+	Session        YandexDialogsRequestSession `json:"session"`
+	Version        string                      `json:"version"`
 }
 
 type YandexDialogsMeta struct {
@@ -89,9 +90,10 @@ type YandexDialogsEntityDateTime struct {
 // response
 
 type YandexDialogsResponseEnvelope struct {
-	Response YandexDialogsResponse        `json:"response"`
-	Session  YandexDialogsResponseSession `json:"session"`
-	Version  string                       `json:"version"`
+	Response       *YandexDialogsResponse       `json:"response,omitempty"`
+	AccountLinking *struct{}                    `json:"start_account_linking,omitempty"`
+	Session        YandexDialogsResponseSession `json:"session"`
+	Version        string                       `json:"version"`
 }
 
 type YandexDialogsResponseSession struct {

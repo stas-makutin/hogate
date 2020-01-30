@@ -128,6 +128,50 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 	return nil, err
 }
 
+func testAuthorization(r *http.Request, scope ...scopeType) (int, *AuthTokenClaims) {
+	authorization := r.Header.Get("Authorization")
+	if authorization == "" {
+		return http.StatusForbidden, nil
+	}
+	if strings.HasPrefix(authorization, "Bearer ") {
+		if claim, err := parseAuthToken(authorization[7:]); err == nil && claim.Type == authTokenAccess {
+			valid := true
+			if len(scope) > 0 {
+				var ss scopeSet
+				if len(claim.Scope) > 0 {
+					ss = newScopeSet(claim.Scope...)
+				} else if claim.UserName != "" && claim.ClientId == "" {
+					if ui, ok := credentials.user(claim.UserName); ok {
+						ss = ui.scope
+					} else {
+						valid = false
+					}
+				} else {
+					valid = false
+				}
+				if valid {
+					for _, v := range scope {
+						if _, ok := ss[v]; !ok {
+							valid = false
+							break
+						}
+					}
+				}
+			}
+			if valid {
+				httpSetLogBulkData(r, logData{
+					"auth": {
+						"u": claim.UserName,
+						"c": claim.ClientId,
+					},
+				})
+				return http.StatusOK, claim
+			}
+		}
+	}
+	return http.StatusForbidden, nil
+}
+
 func httpAuthorization(r *http.Request) *AuthTokenClaims {
 	if claim, ok := r.Context().Value(httpAuthorizationKey).(*AuthTokenClaims); ok {
 		return claim
@@ -138,49 +182,12 @@ func httpAuthorization(r *http.Request) *AuthTokenClaims {
 func authorizationHandler(scope ...scopeType) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authorization := r.Header.Get("Authorization")
-			if authorization == "" {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			status, claim := testAuthorization(r, scope...)
+			if status == http.StatusOK {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey, claim)))
 				return
 			}
-			if strings.HasPrefix(authorization, "Bearer ") {
-				if claim, err := parseAuthToken(authorization[7:]); err == nil && claim.Type == authTokenAccess {
-					valid := true
-					if len(scope) > 0 {
-						var ss scopeSet
-						if len(claim.Scope) > 0 {
-							ss = newScopeSet(claim.Scope...)
-						} else if claim.UserName != "" && claim.ClientId == "" {
-							if ui, ok := credentials.user(claim.UserName); ok {
-								ss = ui.scope
-							} else {
-								valid = false
-							}
-						} else {
-							valid = false
-						}
-						if valid {
-							for _, v := range scope {
-								if _, ok := ss[v]; !ok {
-									valid = false
-									break
-								}
-							}
-						}
-					}
-					if valid {
-						httpSetLogBulkData(r, logData{
-							"auth": {
-								"u": claim.UserName,
-								"c": claim.ClientId,
-							},
-						})
-						next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey, claim)))
-						return
-					}
-				}
-			}
-			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			http.Error(w, http.StatusText(status), status)
 		})
 	}
 }
