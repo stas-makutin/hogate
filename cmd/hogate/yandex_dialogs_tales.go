@@ -159,6 +159,7 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := YandexDialogsResponseEnvelope{
+		Response: &YandexDialogsResponse{},
 		Session: YandexDialogsResponseSession{
 			SessionId: req.Session.SessionId,
 			MessageId: req.Session.MessageId,
@@ -167,8 +168,13 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		Version: "1.0",
 	}
 
-	if status, _ := testAuthorization(r, scopeYandexDialogs); status != http.StatusOK {
+	if req.Request != nil && req.Request.Command == "test" {
 
+		resp.Response.Text = req.Request.Command
+
+	} else if status, _ := testAuthorization(r, scopeYandexDialogs); status != http.StatusOK {
+
+		resp.Response.Text = "пожалуйста авторизируйтесь"
 		resp.AccountLinking = &struct{}{}
 
 	} else {
@@ -177,7 +183,6 @@ func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
 		if req.AccountLinking != nil {
 			req.Session.New = true
 		}
-		resp.Response = &YandexDialogsResponse{}
 
 		errorText := "Что-то пошло не так"
 
@@ -457,7 +462,7 @@ func yandexDialogsTalesReactionSelect(r *YandexDialogsResponse, skillId string, 
 			}
 		} else if slice, ok := state.(yandexDialogsTalesSlice); ok {
 			fileType = slice.fileType
-			index += slice.index - 1
+			index += slice.index
 		} else {
 			return yandexDialogsTalesReactionSlice(r, skillId, fileType, index, ydtDefaultSliceLength)
 		}
