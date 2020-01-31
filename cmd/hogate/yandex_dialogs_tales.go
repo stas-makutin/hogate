@@ -464,11 +464,11 @@ func yandexDialogsTalesReactionSelect(r *YandexDialogsResponse, skillId string, 
 			fileType = slice.fileType
 			index += slice.index
 		} else {
-			return yandexDialogsTalesReactionSlice(r, skillId, fileType, index, ydtDefaultSliceLength)
+			index--
 		}
 	}
 	if index >= 0 {
-		if f, ok := ydtFileTypes[fileType]; ok {
+		if f, ok := ydtFileTypes[fileType]; ok && index < len(f) {
 			var bt strings.Builder
 			var btts strings.Builder
 
