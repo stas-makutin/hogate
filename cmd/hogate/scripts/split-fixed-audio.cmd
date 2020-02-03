@@ -1,0 +1,1 @@
+ffmpeg.exe -i %1 -map 0 -f segment -segment_time 120 -ac 1 -c:a libopus %~n1_%%03d.opus

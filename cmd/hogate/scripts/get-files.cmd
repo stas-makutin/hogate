@@ -1,0 +1,1 @@
+curl -H "Authorization: OAuth <token>" "https://dialogs.yandex.net/api/v1/skills/<skill id>/sounds" > files.json
