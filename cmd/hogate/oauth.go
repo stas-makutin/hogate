@@ -34,7 +34,7 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// validate clientId, redirectUrl, and scope
 	ci, ok := credentials.client(clientId)
-	if !ok || ci.options&coAuthorizationCode == 0 || redirectUri != ci.redirectUri || !ci.scope.test(parsedScope, false) {
+	if !ok || ci.options&coAuthorizationCode == 0 || !ci.matchRedirectUri(redirectUri) || !ci.scope.test(parsedScope, false) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -188,7 +188,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 
 		if code == "" || clientId == "" || clientSecret == "" || redirectUri == "" {
 			errorCode = "invalid_request"
-		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret || redirectUri != ci.redirectUri {
+		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret || !ci.matchRedirectUri(redirectUri) {
 			errorCode = "invalid_client"
 			errorStatus = http.StatusUnauthorized
 		} else if claims, err := parseAuthToken(code); err != nil || claims.Type != authTokenCode || clientId != claims.ClientId {

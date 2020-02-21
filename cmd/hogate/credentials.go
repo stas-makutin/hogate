@@ -43,7 +43,7 @@ type clientInfo struct {
 	id          string
 	name        string
 	secret      string
-	redirectUri string
+	redirectUri []string
 	options     uint32
 	scope       scopeSet
 }
@@ -108,8 +108,16 @@ func validateCredentialsConfig(cfgError configError) {
 			clientError(fmt.Sprintf("invalid options: %v", err))
 		}
 
-		if options&coAuthorizationCode != 0 && client.RedirectUri == "" {
-			clientError("redirectUri cannot be empty if authorizationCode option is set.")
+		if options&coAuthorizationCode != 0 {
+			count := 0
+			for _, v := range client.RedirectUri {
+				if v != "" {
+					count++
+				}
+			}
+			if count <= 0 {
+				clientError("At least one non-empty redirectUri must present if authorizationCode option is set.")
+			}
 		}
 
 		scope, err := parseScope(client.Scope)
@@ -184,6 +192,15 @@ func (s scopeSet) String() string {
 		}
 	}
 	return sb.String()
+}
+
+func (ci clientInfo) matchRedirectUri(redirectUri string) bool {
+	for _, v := range ci.redirectUri {
+		if v == redirectUri {
+			return true
+		}
+	}
+	return false
 }
 
 func (c credentialsContainer) client(clientId string) (*clientInfo, bool) {

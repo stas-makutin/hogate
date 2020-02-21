@@ -95,12 +95,12 @@ type User struct {
 }
 
 type Client struct {
-	Id          string `yaml:"id"`
-	Name        string `yaml:"name,omitempty"`
-	Secret      string `yaml:"secret"`
-	RedirectUri string `yaml:"redirectUri,omitempty"`
-	Options     string `yaml:"options"`
-	Scope       string `yaml:"scope,omitempty"`
+	Id          string   `yaml:"id"`
+	Name        string   `yaml:"name,omitempty"`
+	Secret      string   `yaml:"secret"`
+	RedirectUri []string `yaml:"redirectUri,omitempty"`
+	Options     string   `yaml:"options"`
+	Scope       string   `yaml:"scope,omitempty"`
 }
 
 type YandexHome struct {
