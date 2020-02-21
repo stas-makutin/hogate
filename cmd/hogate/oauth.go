@@ -169,6 +169,12 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 			jsonEscape(accessToken), int64(accessTokenLifeTime/time.Second), refreshToken, jsonEscape(scope.String()),
 		)
 	}
+	basicAuthPair := func(first, second string) (string, string) {
+		if f, s, ok := r.BasicAuth(); ok {
+			return f, s
+		}
+		return first, second
+	}
 
 	err := r.ParseForm()
 	if err != nil {
@@ -186,6 +192,10 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		clientSecret := r.Form.Get("client_secret")
 		redirectUri := r.Form.Get("redirect_uri")
 
+		if clientSecret == "" {
+			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+		}
+
 		if code == "" || clientId == "" || clientSecret == "" || redirectUri == "" {
 			errorCode = "invalid_request"
 		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret || !ci.matchRedirectUri(redirectUri) {
@@ -202,6 +212,10 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		clientId := r.Form.Get("client_id")
 		clientSecret := r.Form.Get("client_secret")
 		scope := r.Form.Get("scope")
+
+		if clientSecret == "" {
+			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+		}
 
 		if clientId == "" || clientSecret == "" {
 			errorCode = "invalid_request"
@@ -222,6 +236,10 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		clientId := r.Form.Get("client_id")
 		clientSecret := r.Form.Get("client_secret")
 		scope := r.Form.Get("scope")
+
+		if clientSecret == "" {
+			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+		}
 
 		if refreshToken == "" || clientId == "" || clientSecret == "" {
 			errorCode = "invalid_request"
@@ -246,6 +264,10 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		userName := r.Form.Get("user")
 		password := r.Form.Get("password")
 		scope := r.Form.Get("scope")
+
+		if password == "" {
+			userName, password = basicAuthPair(userName, password)
+		}
 
 		if userName == "" || password == "" {
 			errorCode = "invalid_request"
