@@ -161,10 +161,14 @@ func expiredCredentialsError() (namespace, name string, payload, context interfa
 }
 
 func discovery(event InputEvent) (namespace, name string, payload, context interface{}) {
-	if event.Directive.Endpoint == nil {
+	if event.Directive.Payload == nil {
 		return internalError()
 	}
-	if event.Directive.Endpoint.Scope.Token == "" {
+	var endpoint Endpoint
+	if err := json.Unmarshal(event.Directive.Payload, &endpoint); err != nil {
+		return internalError()
+	}
+	if endpoint.Scope.Token == "" {
 		return invalidAuthorizationError()
 	}
 	client := http.Client{Timeout: time.Second * 2}
@@ -172,7 +176,7 @@ func discovery(event InputEvent) (namespace, name string, payload, context inter
 	if error != nil {
 		return unavailableError()
 	}
-	request.Header.Add("Authorization", "Bearer "+event.Directive.Endpoint.Scope.Token)
+	request.Header.Add("Authorization", "Bearer "+endpoint.Scope.Token)
 	response, error := client.Do(request)
 	if error != nil {
 		return unavailableError()
@@ -235,6 +239,11 @@ func discovery(event InputEvent) (namespace, name string, payload, context inter
 					Interface: "Alexa.PowerController",
 					Version:   "3",
 				},
+				Capability{
+					Type:      "AlexaInterface",
+					Interface: "Alexa",
+					Version:   "3",
+				},
 			},
 		})
 	}
@@ -294,6 +303,12 @@ func powerController(event InputEvent) (namespace, name string, payload, context
 func QueryHandler(ctx context.Context, event InputEvent) (*Response, error) {
 	var namespace, name string
 	var payload, context interface{}
+
+	/*
+		if ev, err := json.Marshal(&event); err == nil {
+			fmt.Println(string(ev))
+		}
+	*/
 
 	switch event.Directive.Header.Namespace {
 	case "Alexa.Discovery":
