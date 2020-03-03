@@ -206,7 +206,6 @@ func loadConfig(cfgFile string) error {
 	for _, v := range validate {
 		v(ce)
 	}
-	config = Config{HttpServer: config.HttpServer}
 	if errStr.Len() > 0 {
 		return fmt.Errorf("The configuration file is invalid:%v", errStr.String())
 	}
