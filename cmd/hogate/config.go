@@ -173,14 +173,22 @@ type ZwCmd struct {
 type configError func(msg string)
 
 func loadConfig(cfgFile string) error {
-	file, err := os.Open(cfgFile)
+	err := func() error {
+		file, err := os.Open(cfgFile)
+		if err != nil {
+			return fmt.Errorf("Unable to open configuration file: %v", err)
+		}
+		defer file.Close()
+		err = yaml.NewDecoder(file).Decode(&config)
+		if err != nil {
+			return fmt.Errorf("Unable to parse configuration file: %v", err)
+		}
+		return nil
+	}()
 	if err != nil {
-		return fmt.Errorf("Unable to open configuration file: %v", err)
+		return err
 	}
-	err = yaml.NewDecoder(file).Decode(&config)
-	if err != nil {
-		return fmt.Errorf("Unable to parse configuration file: %v", err)
-	}
+
 	var errStr strings.Builder
 	ce := func(msg string) {
 		errStr.WriteString(NewLine + msg)
