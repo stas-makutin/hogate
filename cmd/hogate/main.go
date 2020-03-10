@@ -170,11 +170,13 @@ func main() {
 			}
 			app.stopped.Lock()
 			os.Exit(0)
-		} else {
+		} else if action != "" {
 			err = service.Control(svc, action)
 			if err != nil {
 				fmt.Println(err)
 			}
+		} else {
+			fmt.Println("Please specify the Action. Run with --help for details.")
 		}
 		return
 	}
