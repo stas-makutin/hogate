@@ -27,6 +27,7 @@ var devicesFriendlyNames = map[string]string{
 	"L-8":   "Window Light",
 	"L-9":   "Fireplace Light",
 	"L-10":  "Upper Light",
+	"L-10a": "Sofa Light",
 	"L-11":  "Backyard Light",
 	"L-12":  "Shed Light",
 	"L-13":  "Driveway Light",
