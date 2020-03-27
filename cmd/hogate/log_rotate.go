@@ -267,7 +267,7 @@ func (f *backupFiles) deleteListForDaysBackup(backupDays uint32, backupsPerDays 
 	if backupsPerDays == 0 {
 		backupsPerDays = 1
 	}
-	prevDate, daysCount, perDayCount := "", uint32(0), uint32(1)
+	prevDate, daysCount, perDayCount := "", uint32(1), uint32(1)
 	return f.enumFilesForDelete(currentDate, func(file backupFileInfo, files *[]string) (keep bool) {
 		if prevDate == file.date {
 			if perDayCount >= backupsPerDays {
