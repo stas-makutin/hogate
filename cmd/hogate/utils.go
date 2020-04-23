@@ -146,7 +146,6 @@ func parseJsonRequest(v interface{}, w http.ResponseWriter, r *http.Request) boo
 		return false
 	}
 	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
 	if err := d.Decode(v); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return false
