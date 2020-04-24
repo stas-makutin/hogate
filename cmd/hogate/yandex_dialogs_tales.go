@@ -741,29 +741,69 @@ func yandexDialogsTalesFileTypeName(fileType ydtFileType, count int) (text strin
 }
 
 func yandexDialogsTalesNumber(n, r int) string {
-	var m int = 0
-	if !(n > 10 && n < 15) {
-		m = n % 10
+	if n > 999 || n <= 0 {
+		return strconv.Itoa(n)
 	}
-	switch {
-	case m == 1:
-		switch {
-		case r > 0:
-			return "одна"
-		case r < 0:
-			return "один"
-		default:
-			return "одно"
-		}
-	case m == 2:
-		switch {
-		case r > 0:
-			return "две"
-		default:
-			return "два"
-		}
+
+	var names = map[int]map[int]string{
+		0: {
+			1: "один", 2: "два", 3: "три", 4: "четрые", 5: "пять", 6: "шесть", 7: "семь", 8: "восемь", 9: "девять",
+			10: "десять", 11: "одинадцать", 12: "двенадцать", 13: "тринадцать", 14: "четырнадцать",
+			15: "пятнадцать", 16: "шестнадцать", 17: "семнадцать", 18: "восемнадцать", 19: "девятнадцать",
+		},
+		1: {2: "двадцать", 3: "тридцать", 4: "сорок", 5: "пятьдесят", 6: "шестьдесят", 7: "семьдесят", 8: "восемьдесят", 9: "девяносто"},
+		2: {1: "сто", 2: "двести", 3: "триста", 4: "четыреста", 5: "пятьсот", 6: "шестьсот", 7: "семьсот", 8: "восемьсот", 9: "девятьсот"},
 	}
-	return strconv.Itoa(n)
+
+	text := ""
+	l := 0
+	d := 100
+	for n > 0 {
+		name := ""
+
+		m := n % d
+		if l == 0 {
+			nl := l
+			if m < 20 {
+				n /= 10
+				nl++
+			} else {
+				m = n % 10
+			}
+			if m > 0 {
+				name = names[l][m]
+				switch m {
+				case 1:
+					if r > 0 {
+						name = "одна"
+					} else if r == 0 {
+						name = "одно"
+					}
+				case 2:
+					if r > 0 {
+						name = "две"
+					}
+				}
+			}
+			l = nl
+		} else if m > 0 {
+			name = names[l][m]
+		}
+
+		if name != "" {
+			if text != "" {
+				text = name + " " + text
+			} else {
+				text = name
+			}
+		}
+
+		n /= 10
+		d = 10
+		l++
+	}
+
+	return text
 }
 
 func yandexDialogsTalesSequence(n, r, c int) (text string) {
