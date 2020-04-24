@@ -21,7 +21,7 @@ var logRotate logRotation
 var logRotatePattern = regexp.MustCompile(`^-(\d{4}-\d{2}-\d{2})(_(\d+))*$`)
 
 func (r *logRotation) rotate(logFile string, errorLog *log.Logger) {
-	logCfg := config.HttpServer.Log
+	logCfg := config.HTTPServer.Log
 
 	if !((logCfg.Backups > 0 || logCfg.BackupDays > 0) && (logCfg.MaxSizeBytes > 0 || logCfg.MaxAgeDuration > 0)) {
 		return // rotation is not enabled

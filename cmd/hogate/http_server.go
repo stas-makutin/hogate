@@ -29,80 +29,80 @@ type httpServer struct {
 
 type logData map[string]map[string]string
 
-const httpLogMessage = "logMessage"
+type httpLogMessageKey struct{}
 
-func validateHttpServerConfig(cfgError configError) {
-	if config.HttpServer.Port < 1 || config.HttpServer.Port > 65535 {
+func validateHTTPServerConfig(cfgError configError) {
+	if config.HTTPServer.Port < 1 || config.HTTPServer.Port > 65535 {
 		cfgError("httpServer.port must be between 1 and 65535.")
 	}
 
-	if config.HttpServer.Log != nil {
-		if config.HttpServer.Log.Dir == "" {
+	if config.HTTPServer.Log != nil {
+		if config.HTTPServer.Log.Dir == "" {
 			cfgError("httpServer.log.dir is required.")
 		}
-		if config.HttpServer.Log.File == "" {
-			config.HttpServer.Log.File = appName + ".log"
+		if config.HTTPServer.Log.File == "" {
+			config.HTTPServer.Log.File = appName + ".log"
 		}
-		if config.HttpServer.Log.DirMode == 0 {
-			config.HttpServer.Log.DirMode = 0755
+		if config.HTTPServer.Log.DirMode == 0 {
+			config.HTTPServer.Log.DirMode = 0755
 		}
-		if config.HttpServer.Log.FileMode == 0 {
-			config.HttpServer.Log.FileMode = 0644
+		if config.HTTPServer.Log.FileMode == 0 {
+			config.HTTPServer.Log.FileMode = 0644
 		}
-		err := os.MkdirAll(config.HttpServer.Log.Dir, config.HttpServer.Log.DirMode)
+		err := os.MkdirAll(config.HTTPServer.Log.Dir, config.HTTPServer.Log.DirMode)
 		if err != nil {
 			cfgError("httpServer.log.dir is not valid.")
 		}
 
-		size, err := parseSizeString(config.HttpServer.Log.MaxSize)
+		size, err := parseSizeString(config.HTTPServer.Log.MaxSize)
 		if err == nil && size < 0 {
-			err = fmt.Errorf("negative value not allowed.")
+			err = fmt.Errorf("negative value not allowed")
 		}
 		if err != nil {
 			cfgError(fmt.Sprintf("httpServer.log.maxSize is not valid: %v", err))
 		}
-		config.HttpServer.Log.MaxSizeBytes = size
+		config.HTTPServer.Log.MaxSizeBytes = size
 
-		duration, err := parseTimeDuration(config.HttpServer.Log.MaxAge)
+		duration, err := parseTimeDuration(config.HTTPServer.Log.MaxAge)
 		if err == nil && duration < 0 {
-			err = fmt.Errorf("negative value not allowed.")
+			err = fmt.Errorf("negative value not allowed")
 		}
 		if err != nil {
 			cfgError(fmt.Sprintf("httpServer.log.maxAge is not valid: %v", err))
 		}
-		config.HttpServer.Log.MaxAgeDuration = duration
+		config.HTTPServer.Log.MaxAgeDuration = duration
 
-		config.HttpServer.Log.Archive = strings.ToLower(config.HttpServer.Log.Archive)
-		if !(config.HttpServer.Log.Archive == "" || config.HttpServer.Log.Archive == "zip") {
+		config.HTTPServer.Log.Archive = strings.ToLower(config.HTTPServer.Log.Archive)
+		if !(config.HTTPServer.Log.Archive == "" || config.HTTPServer.Log.Archive == "zip") {
 			cfgError("httpServer.log.archive could be either empty or has \"zip\" value")
 		}
 	}
 
-	if config.HttpServer.TLSFiles != nil {
-		if config.HttpServer.TLSFiles.Certificate == "" {
+	if config.HTTPServer.TLSFiles != nil {
+		if config.HTTPServer.TLSFiles.Certificate == "" {
 			cfgError("httpServer.TLSFiles.certificate must be specified.")
-		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Certificate); err != nil {
+		} else if _, err := os.Stat(config.HTTPServer.TLSFiles.Certificate); err != nil {
 			cfgError(fmt.Sprintf("Unable to access the file using httpServer.TLSFiles.certificate path: %v", err))
 		}
-		if config.HttpServer.TLSFiles.Key == "" {
+		if config.HTTPServer.TLSFiles.Key == "" {
 			cfgError("httpServer.TLSFiles.key must be specified.")
-		} else if _, err := os.Stat(config.HttpServer.TLSFiles.Key); err != nil {
+		} else if _, err := os.Stat(config.HTTPServer.TLSFiles.Key); err != nil {
 			cfgError(fmt.Sprintf("Unable to access the file using httpServer.TLSFiles.key path: %v", err))
 		}
 	}
 
-	if config.HttpServer.TLSAcme != nil {
-		if len(config.HttpServer.TLSAcme.HostWhitelist) <= 0 {
+	if config.HTTPServer.TLSAcme != nil {
+		if len(config.HTTPServer.TLSAcme.HostWhitelist) <= 0 {
 			cfgError("httpServer.TLSAcme.hostWhitelist must not be empty.")
 		} else {
-			for _, v := range config.HttpServer.TLSAcme.HostWhitelist {
+			for _, v := range config.HTTPServer.TLSAcme.HostWhitelist {
 				if v == "" {
 					cfgError("httpServer.TLSAcme.hostWhitelist must not contain empty item.")
 					break
 				}
 			}
 		}
-		if config.HttpServer.TLSAcme.CacheDir == "" {
+		if config.HTTPServer.TLSAcme.CacheDir == "" {
 			cfgError("httpServer.TLSAcme.cacheDir cannot be empty.")
 		}
 	}
@@ -115,23 +115,23 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 	var acmeManager *autocert.Manager
 	var tlsConfig *tls.Config
 
-	if config.HttpServer.TLSFiles != nil {
-		tlsCertFile = config.HttpServer.TLSFiles.Certificate
-		tlsKeyFile = config.HttpServer.TLSFiles.Key
+	if config.HTTPServer.TLSFiles != nil {
+		tlsCertFile = config.HTTPServer.TLSFiles.Certificate
+		tlsKeyFile = config.HTTPServer.TLSFiles.Key
 		useTLS = true
-	} else if config.HttpServer.TLSAcme != nil {
+	} else if config.HTTPServer.TLSAcme != nil {
 		var acmeClient *acme.Client
-		if config.HttpServer.TLSAcme.DirectoryURL != "" {
+		if config.HTTPServer.TLSAcme.DirectoryURL != "" {
 			acmeClient = &acme.Client{
-				DirectoryURL: config.HttpServer.TLSAcme.DirectoryURL,
+				DirectoryURL: config.HTTPServer.TLSAcme.DirectoryURL,
 			}
 		}
 		acmeManager = &autocert.Manager{
-			Cache:       autocert.DirCache(config.HttpServer.TLSAcme.CacheDir),
+			Cache:       autocert.DirCache(config.HTTPServer.TLSAcme.CacheDir),
 			Prompt:      autocert.AcceptTOS,
-			HostPolicy:  autocert.HostWhitelist(config.HttpServer.TLSAcme.HostWhitelist...),
-			RenewBefore: time.Duration(config.HttpServer.TLSAcme.RenewBefore) * time.Hour * 24,
-			Email:       config.HttpServer.TLSAcme.Email,
+			HostPolicy:  autocert.HostWhitelist(config.HTTPServer.TLSAcme.HostWhitelist...),
+			RenewBefore: time.Duration(config.HTTPServer.TLSAcme.RenewBefore) * time.Hour * 24,
+			Email:       config.HTTPServer.TLSAcme.Email,
 			Client:      acmeClient,
 		}
 		tlsConfig = acmeManager.TLSConfig()
@@ -145,17 +145,17 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 	addYandexDialogsRoutes(router)
 
 	var handler http.Handler = router
-	if config.HttpServer.Log != nil {
+	if config.HTTPServer.Log != nil {
 		handler = logHandler(errorLog)(handler)
 	}
 
 	srv.server = &http.Server{
 		Handler:           handler,
-		ReadTimeout:       time.Millisecond * time.Duration(config.HttpServer.ReadTimeout),
-		ReadHeaderTimeout: time.Millisecond * time.Duration(config.HttpServer.ReadHeaderTimeout),
-		WriteTimeout:      time.Millisecond * time.Duration(config.HttpServer.WriteTimeout),
-		IdleTimeout:       time.Millisecond * time.Duration(config.HttpServer.IdleTimeout),
-		MaxHeaderBytes:    int(config.HttpServer.MaxHeaderBytes),
+		ReadTimeout:       time.Millisecond * time.Duration(config.HTTPServer.ReadTimeout),
+		ReadHeaderTimeout: time.Millisecond * time.Duration(config.HTTPServer.ReadHeaderTimeout),
+		WriteTimeout:      time.Millisecond * time.Duration(config.HTTPServer.WriteTimeout),
+		IdleTimeout:       time.Millisecond * time.Duration(config.HTTPServer.IdleTimeout),
+		MaxHeaderBytes:    int(config.HTTPServer.MaxHeaderBytes),
 		ErrorLog:          errorLog,
 		TLSConfig:         tlsConfig,
 	}
@@ -168,15 +168,15 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 	useTLS, tlsCertFile, tlsKeyFile := srv.init(errorLog)
 
 	// create TCP listener
-	netListener, err := net.Listen("tcp", ":"+strconv.Itoa(int(config.HttpServer.Port)))
+	netListener, err := net.Listen("tcp", ":"+strconv.Itoa(int(config.HTTPServer.Port)))
 	if err != nil {
-		return fmt.Errorf("Listen on %v port failed: %v", config.HttpServer.Port, err)
+		return fmt.Errorf("Listen on %v port failed: %v", config.HTTPServer.Port, err)
 	}
 	defer netListener.Close()
 
 	// apply concurrent connections limit
-	if config.HttpServer.MaxConnections > 0 {
-		netListener = netutil.LimitListener(netListener, int(config.HttpServer.MaxConnections))
+	if config.HTTPServer.MaxConnections > 0 {
+		netListener = netutil.LimitListener(netListener, int(config.HTTPServer.MaxConnections))
 	}
 
 	if useTLS {
@@ -224,7 +224,7 @@ func (w *logResponseWriter) Write(b []byte) (int, error) {
 }
 
 func httpSetLogBulkData(r *http.Request, data logData) {
-	if d, ok := r.Context().Value(httpLogMessage).(logData); ok {
+	if d, ok := r.Context().Value(httpLogMessageKey{}).(logData); ok {
 		for gn, gv := range data {
 			g, ok := d[gn]
 			if !ok {
@@ -239,7 +239,7 @@ func httpSetLogBulkData(r *http.Request, data logData) {
 }
 
 func httpSetLogData(r *http.Request, group, key, value string) {
-	if d, ok := r.Context().Value(httpLogMessage).(logData); ok {
+	if d, ok := r.Context().Value(httpLogMessageKey{}).(logData); ok {
 		g, ok := d[group]
 		if !ok {
 			g = make(map[string]string)
@@ -255,7 +255,7 @@ func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 			start := time.Now().Local()
 			lrw := &logResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 			data := make(logData)
-			ctx := context.WithValue(r.Context(), httpLogMessage, data)
+			ctx := context.WithValue(r.Context(), httpLogMessageKey{}, data)
 			defer func() {
 				dataStr := ""
 				if len(data) > 0 {
@@ -284,7 +284,7 @@ func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 				csvw.Write(record)
 				csvw.Flush()
 
-				logCfg := config.HttpServer.Log
+				logCfg := config.HTTPServer.Log
 				logFile := filepath.Join(logCfg.Dir, logCfg.File)
 
 				logRotate.rotate(logFile, errorLog)

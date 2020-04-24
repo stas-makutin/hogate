@@ -90,20 +90,23 @@ const (
 	yhDeviceStatusError = "ERROR"
 )
 
+// YandexHomeResponse struct
 type YandexHomeResponse struct {
-	RequestId string      `json:"request_id"`
+	RequestID string      `json:"request_id"`
 	Payload   interface{} `json:"payload"`
 }
 
 // Yandex Home devices
 
+// YandexHomeDevices struct
 type YandexHomeDevices struct {
-	UserId  string             `json:"user_id"`
+	UserID  string             `json:"user_id"`
 	Devices []YandexHomeDevice `json:"devices"`
 }
 
+// YandexHomeDevice struct
 type YandexHomeDevice struct {
-	Id           string                 `json:"id"`
+	ID           string                 `json:"id"`
 	Name         string                 `json:"name,omitempty"`
 	Description  string                 `json:"description,omitempty"`
 	Room         string                 `json:"room,omitempty"`
@@ -113,25 +116,30 @@ type YandexHomeDevice struct {
 	DeviceInfo   interface{}            `json:"device_info,omitempty"`
 }
 
+// YandexHomeZwData struct
 type YandexHomeZwData struct {
-	Id byte `json:"id"`
+	ID byte `json:"id"`
 }
 
+// YandexHomeCapability struct
 type YandexHomeCapability struct {
 	Type        string      `json:"type"`
 	Retrievable bool        `json:"retrievable,omitempty"`
 	Parameters  interface{} `json:"parameters,omitempty"`
 }
 
+// YandexHomeCapabilityMode struct
 type YandexHomeCapabilityMode struct {
 	Instance string                          `json:"instance"`
 	Modes    []YandexHomeCapabilityModeValue `json:"modes"`
 }
 
+// YandexHomeCapabilityModeValue struct
 type YandexHomeCapabilityModeValue struct {
 	Value string `json:"value"`
 }
 
+// YandexHomeCapabilityRange struct
 type YandexHomeCapabilityRange struct {
 	Instance     string                         `json:"instance"`
 	Unit         string                         `json:"unit"`
@@ -139,12 +147,14 @@ type YandexHomeCapabilityRange struct {
 	Range        YandexHomeCapabilityRangeValue `json:"range"`
 }
 
+// YandexHomeCapabilityRangeValue struct
 type YandexHomeCapabilityRangeValue struct {
 	Min       float64 `json:"min"`
 	Max       float64 `json:"max"`
 	Precision float64 `json:"precision"`
 }
 
+// YandexHomeDeviceInfo struct
 type YandexHomeDeviceInfo struct {
 	Manufacturer string `json:"manufacturer,omitempty"`
 	Model        string `json:"model,omitempty"`
@@ -154,31 +164,37 @@ type YandexHomeDeviceInfo struct {
 
 // Yandex Home query
 
+// YandexHomeQueryRequest struct
 type YandexHomeQueryRequest struct {
 	Devices []YandexHomeDeviceQuery `json:"devices"`
 }
 
+// YandexHomeDeviceQuery struct
 type YandexHomeDeviceQuery struct {
-	Id         string      `json:"id"`
+	ID         string      `json:"id"`
 	CustomData interface{} `json:"custom_data,omitempty"`
 }
 
+// YandexHomeDevicesState struct
 type YandexHomeDevicesState struct {
 	Devices []YandexHomeDeviceState `json:"devices"`
 }
 
+// YandexHomeDeviceState struct
 type YandexHomeDeviceState struct {
-	Id           string                      `json:"id"`
+	ID           string                      `json:"id"`
 	Capabilities []YandexHomeCapabilityState `json:"capabilities,omitempty"`
 	ErrorCode    string                      `json:"error_code,omitempty"`
 	ErrorMessage string                      `json:"error_message,omitempty"`
 }
 
+// YandexHomeCapabilityState struct
 type YandexHomeCapabilityState struct {
 	Type  string          `json:"type"`
 	State YandexHomeState `json:"state"`
 }
 
+// YandexHomeState struct
 type YandexHomeState struct {
 	Instance string      `json:"instance"`
 	Value    interface{} `json:"value"`
@@ -186,53 +202,63 @@ type YandexHomeState struct {
 
 // Yandex Home action
 
+// YandexHomeActionRequest struct
 type YandexHomeActionRequest struct {
 	Payload YandexHomeActionPayload `json:"payload"`
 }
 
+// YandexHomeActionPayload struct
 type YandexHomeActionPayload struct {
 	Devices []YandexHomeDeviceAction `json:"devices"`
 }
 
+// YandexHomeDeviceAction struct
 type YandexHomeDeviceAction struct {
-	Id           string                       `json:"id"`
+	ID           string                       `json:"id"`
 	CustomData   interface{}                  `json:"custom_data,omitempty"`
 	Capabilities []YandexHomeCapabilityAction `json:"capabilities"`
 }
 
+// YandexHomeCapabilityAction struct
 type YandexHomeCapabilityAction struct {
 	Type  string           `json:"type"`
 	State YandexHomeAction `json:"state"`
 }
 
+// YandexHomeAction struct
 type YandexHomeAction struct {
 	Instance string      `json:"instance"`
 	Relative bool        `json:"relative"`
 	Value    interface{} `json:"value"`
 }
 
+// YandexHomeActionResult struct
 type YandexHomeActionResult struct {
 	Status       string `json:"status"`
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
 }
 
+// YandexHomeInstanceResult struct
 type YandexHomeInstanceResult struct {
 	Instance     string                 `json:"instance"`
 	ActionResult YandexHomeActionResult `json:"action_result"`
 }
 
+// YandexHomeCapabilityActionResult struct
 type YandexHomeCapabilityActionResult struct {
 	Type  string                   `json:"type"`
 	State YandexHomeInstanceResult `json:"state"`
 }
 
+// YandexHomeDeviceActionResult struct
 type YandexHomeDeviceActionResult struct {
-	Id           string                             `json:"id"`
+	ID           string                             `json:"id"`
 	Capabilities []YandexHomeCapabilityActionResult `json:"capabilities,omitempty"`
 	ActionResult YandexHomeActionResult             `json:"action_result"`
 }
 
+// YandexHomeDevicesActionResult struct
 type YandexHomeDevicesActionResult struct {
 	Devices []YandexHomeDeviceActionResult `json:"devices"`
 }

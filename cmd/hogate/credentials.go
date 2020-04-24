@@ -43,7 +43,7 @@ type clientInfo struct {
 	id          string
 	name        string
 	secret      string
-	redirectUri []string
+	redirectURI []string
 	options     uint32
 	scope       scopeSet
 }
@@ -65,11 +65,11 @@ func validateCredentialsConfig(cfgError configError) {
 		if user.Name == "" {
 			userError("name cannot be empty.")
 		} else if _, ok := credentials.users[user.Name]; ok {
-			userError(fmt.Sprintf("name '%v' already exists.", user.Name))
+			userError(fmt.Sprintf("name '%v' already exists", user.Name))
 		}
 
 		if user.Password == "" {
-			userError("password cannot be empty.")
+			userError("password cannot be empty")
 		}
 
 		scope, err := parseScope(user.Scope)
@@ -85,24 +85,24 @@ func validateCredentialsConfig(cfgError configError) {
 			cfgError(fmt.Sprintf("credentials.clients, client %v: %v", i, msg))
 		}
 
-		if client.Id == "" {
+		if client.ID == "" {
 			clientError("id cannot be empty")
-		} else if _, ok := credentials.clients[client.Id]; ok {
-			clientError(fmt.Sprintf("id '%v' already exists.", client.Id))
+		} else if _, ok := credentials.clients[client.ID]; ok {
+			clientError(fmt.Sprintf("id '%v' already exists", client.ID))
 		}
 
 		clientName := client.Name
 		if clientName == "" {
-			clientName = client.Id
+			clientName = client.ID
 		}
 
 		if client.Secret == "" {
-			clientError("secret cannot be empty.")
+			clientError("secret cannot be empty")
 		}
 
 		options, err := parseClientOptions(client.Options)
 		if err == nil && options == 0 {
-			err = fmt.Errorf("at least one option must be specified.")
+			err = fmt.Errorf("at least one option must be specified")
 		}
 		if err != nil {
 			clientError(fmt.Sprintf("invalid options: %v", err))
@@ -110,7 +110,7 @@ func validateCredentialsConfig(cfgError configError) {
 
 		if options&coAuthorizationCode != 0 {
 			count := 0
-			for _, v := range client.RedirectUri {
+			for _, v := range client.RedirectURI {
 				if v != "" {
 					count++
 				}
@@ -125,11 +125,11 @@ func validateCredentialsConfig(cfgError configError) {
 			clientError(err.Error())
 		}
 
-		credentials.clients[client.Id] = clientInfo{
-			id:          client.Id,
+		credentials.clients[client.ID] = clientInfo{
+			id:          client.ID,
 			name:        clientName,
 			secret:      client.Secret,
-			redirectUri: client.RedirectUri,
+			redirectURI: client.RedirectURI,
 			options:     options,
 			scope:       scope,
 		}
@@ -152,7 +152,7 @@ func (s scopeType) displayName() string {
 
 func (s scopeSet) test(scope scopeSet, allowEmpty bool) bool {
 	empty := true
-	for k, _ := range scope {
+	for k := range scope {
 		if _, ok := s[k]; !ok {
 			return false
 		}
@@ -166,12 +166,12 @@ func (s scopeSet) test(scope scopeSet, allowEmpty bool) bool {
 
 func (s scopeSet) same(scope scopeSet) bool {
 	if len(s) == len(scope) {
-		for k, _ := range scope {
+		for k := range scope {
 			if _, ok := s[k]; !ok {
 				return false
 			}
 		}
-		for k, _ := range s {
+		for k := range s {
 			if _, ok := scope[k]; !ok {
 				return false
 			}
@@ -183,7 +183,7 @@ func (s scopeSet) same(scope scopeSet) bool {
 
 func (s scopeSet) String() string {
 	var sb strings.Builder
-	for k, _ := range s {
+	for k := range s {
 		if name := k.String(); name != "" {
 			if sb.Len() > 0 {
 				sb.WriteString(" ")
@@ -194,17 +194,17 @@ func (s scopeSet) String() string {
 	return sb.String()
 }
 
-func (ci clientInfo) matchRedirectUri(redirectUri string) bool {
-	for _, v := range ci.redirectUri {
-		if v == redirectUri {
+func (ci clientInfo) matchRedirectURI(redirectURI string) bool {
+	for _, v := range ci.redirectURI {
+		if v == redirectURI {
 			return true
 		}
 	}
 	return false
 }
 
-func (c credentialsContainer) client(clientId string) (*clientInfo, bool) {
-	ci, ok := c.clients[clientId]
+func (c credentialsContainer) client(clientID string) (*clientInfo, bool) {
+	ci, ok := c.clients[clientID]
 	return &ci, ok
 }
 

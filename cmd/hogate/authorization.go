@@ -19,9 +19,12 @@ const generatedAuthTokenSecretSize = 32
 
 var generatedAuthTokenSecretAlphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
 
+type httpAuthorizationKey struct{}
+
+// AuthTokenClaims type
 type AuthTokenClaims struct {
 	Type      byte        `json:"t,omitempty"`
-	ClientId  string      `json:"c,omitempty"`
+	ClientID  string      `json:"c,omitempty"`
 	UserName  string      `json:"u,omitempty"`
 	Scope     []scopeType `json:"s,omitempty"`
 	ExpiresAt int64       `json:"e,omitempty"`
@@ -33,8 +36,7 @@ const (
 	authTokenRefresh
 )
 
-const httpAuthorizationKey = "authClaim"
-
+// Valid method
 func (c AuthTokenClaims) Valid() error {
 	if c.Type != authTokenCode && c.Type != authTokenAccess && c.Type != authTokenRefresh {
 		return fmt.Errorf("Unknown Type")
@@ -61,7 +63,7 @@ func validateAuthorizationConfig(cfgError configError) {
 			if src != "" {
 				duration, err := parseTimeDuration(src)
 				if err == nil && duration < 0 {
-					err = fmt.Errorf("negative value not allowed.")
+					err = fmt.Errorf("negative value not allowed")
 				}
 				if err == nil {
 					return duration, true
@@ -83,7 +85,7 @@ func validateAuthorizationConfig(cfgError configError) {
 	}
 }
 
-func createAuthToken(tokenType byte, clientId, userName string, scope scopeSet) (string, error) {
+func createAuthToken(tokenType byte, clientID, userName string, scope scopeSet) (string, error) {
 	var duration time.Duration
 	switch tokenType {
 	case authTokenCode:
@@ -93,18 +95,18 @@ func createAuthToken(tokenType byte, clientId, userName string, scope scopeSet) 
 	case authTokenRefresh:
 		duration = refreshTokenLifeTime
 	default:
-		return "", fmt.Errorf("Unknown token type %v.", tokenType)
+		return "", fmt.Errorf("unknown token type %v", tokenType)
 	}
 	expiresAt := time.Now().UTC().Add(duration).Unix()
 
 	claims := AuthTokenClaims{
 		Type:      tokenType,
-		ClientId:  clientId,
+		ClientID:  clientID,
 		UserName:  userName,
 		ExpiresAt: expiresAt,
 	}
 
-	for k, _ := range scope {
+	for k := range scope {
 		claims.Scope = append(claims.Scope, k)
 	}
 
@@ -140,7 +142,7 @@ func testAuthorization(r *http.Request, scope ...scopeType) (int, *AuthTokenClai
 				var ss scopeSet
 				if len(claim.Scope) > 0 {
 					ss = newScopeSet(claim.Scope...)
-				} else if claim.UserName != "" && claim.ClientId == "" {
+				} else if claim.UserName != "" && claim.ClientID == "" {
 					if ui, ok := credentials.user(claim.UserName); ok {
 						ss = ui.scope
 					} else {
@@ -162,7 +164,7 @@ func testAuthorization(r *http.Request, scope ...scopeType) (int, *AuthTokenClai
 				httpSetLogBulkData(r, logData{
 					"auth": {
 						"u": claim.UserName,
-						"c": claim.ClientId,
+						"c": claim.ClientID,
 					},
 				})
 				return http.StatusOK, claim
@@ -173,7 +175,7 @@ func testAuthorization(r *http.Request, scope ...scopeType) (int, *AuthTokenClai
 }
 
 func httpAuthorization(r *http.Request) *AuthTokenClaims {
-	if claim, ok := r.Context().Value(httpAuthorizationKey).(*AuthTokenClaims); ok {
+	if claim, ok := r.Context().Value(httpAuthorizationKey{}).(*AuthTokenClaims); ok {
 		return claim
 	}
 	return nil
@@ -184,7 +186,7 @@ func authorizationHandler(scope ...scopeType) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			status, claim := testAuthorization(r, scope...)
 			if status == http.StatusOK {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey, claim)))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey{}, claim)))
 				return
 			}
 			http.Error(w, http.StatusText(status), status)

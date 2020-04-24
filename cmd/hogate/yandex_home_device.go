@@ -64,7 +64,7 @@ type yxhDevice struct {
 	description  string
 	room         string
 	devType      yxhDeviceType
-	zwId         byte
+	zwID         byte
 	capabilities []yxhCapability
 }
 
@@ -104,7 +104,7 @@ func validateYandexHomeConfig(cfgError configError) {
 		device := parseDevice(d, deviceError)
 		if device.id != "" {
 			if _, ok := yxhDevices[device.id]; ok {
-				deviceError(fmt.Sprintf("id '%v' is in use already.", d.Id))
+				deviceError(fmt.Sprintf("id '%v' is in use already.", d.ID))
 			}
 			yxhDevices[device.id] = device
 		}
@@ -114,20 +114,20 @@ func validateYandexHomeConfig(cfgError configError) {
 func parseDevice(d YandexHomeDeviceConfig, cfgError configError) yxhDevice {
 	var rv yxhDevice
 	var ok bool
-	if d.Id == "" {
+	if d.ID == "" {
 		cfgError("id cannot be empty.")
 	}
-	rv.id = d.Id
+	rv.id = d.ID
 	rv.name = d.Name
 	rv.description = d.Description
 	rv.room = d.Room
 	if rv.devType, ok = parseDeviceType(d.Type); !ok {
 		cfgError(fmt.Sprintf("invalid type '%v'.", d.Type))
 	}
-	if d.ZwId == 0 {
+	if d.ZwID == 0 {
 		cfgError("zwid is required and cannot be 0.")
 	}
-	rv.zwId = d.ZwId
+	rv.zwID = d.ZwID
 	if len(d.Capabilities) <= 0 {
 		rv.capabilities = append(rv.capabilities, yxhCapability{capType: yxhCapabilityOnOff, retrievable: true})
 	} else {
@@ -255,7 +255,7 @@ func (d yxhDevice) yandex() YandexHomeDevice {
 	}
 
 	rv := YandexHomeDevice{
-		Id:           d.id,
+		ID:           d.id,
 		Name:         d.name,
 		Description:  d.description,
 		Room:         d.room,
@@ -354,7 +354,7 @@ func (c yxhParamRange) yandex() YandexHomeCapabilityRange {
 }
 
 func (d yxhDevice) query() (rv YandexHomeDeviceState) {
-	rv.Id = d.id
+	rv.ID = d.id
 
 	for _, c := range d.capabilities {
 		if !c.retrievable {
@@ -368,7 +368,7 @@ func (d yxhDevice) query() (rv YandexHomeDeviceState) {
 		case yxhCapabilityOnOff:
 			switch d.devType {
 			case yxhDeviceTypeLight, yxhDeviceTypeSocket, yxhDeviceTypeSwitch:
-				capState, errorCode = yxhQueryBasicOnOff(d.zwId)
+				capState, errorCode = yxhQueryBasicOnOff(d.zwID)
 			}
 		}
 
@@ -389,7 +389,7 @@ func (d yxhDevice) query() (rv YandexHomeDeviceState) {
 }
 
 func (d yxhDevice) action(capabilities []YandexHomeCapabilityAction) (rv YandexHomeDeviceActionResult) {
-	rv.Id = d.id
+	rv.ID = d.id
 
 	for _, cap := range capabilities {
 		c := YandexHomeCapabilityActionResult{
@@ -407,7 +407,7 @@ func (d yxhDevice) action(capabilities []YandexHomeCapabilityAction) (rv YandexH
 			switch capType {
 			case yxhCapabilityOnOff:
 				if value, ok := cap.State.Value.(bool); ok {
-					c.State.ActionResult.ErrorCode = yxhActionBasicOnOff(d.zwId, value)
+					c.State.ActionResult.ErrorCode = yxhActionBasicOnOff(d.zwID, value)
 				}
 			}
 		}

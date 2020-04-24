@@ -135,7 +135,7 @@ func validateRouteConfig(cfgError configError) {
 		if route.MaxBodySize != "" {
 			maxBodySize, err := parseSizeString(route.MaxBodySize)
 			if err == nil && maxBodySize < 0 {
-				err = fmt.Errorf("negative value not allowed.")
+				err = fmt.Errorf("negative value not allowed")
 			}
 			if err != nil {
 				routeError(fmt.Sprintf("invalid maxBodySize value '%v': %v", route.MaxBodySize, err))
@@ -171,7 +171,7 @@ func parseRouteType(t string) (int, error) {
 	case "yandex-home-action":
 		return routeYandexHomeAction, nil
 	}
-	return 0, fmt.Errorf("Unrecognized route type.")
+	return 0, fmt.Errorf("Unrecognized route type")
 }
 
 func parseRoutePath(path string) (string, error) {
@@ -186,7 +186,7 @@ func parseRoutePath(path string) (string, error) {
 		return "", err
 	}
 	if url.Path != path {
-		return "", fmt.Errorf("path must contain URI path only.")
+		return "", fmt.Errorf("path must contain URI path only")
 	}
 	return path, nil
 }
@@ -195,7 +195,7 @@ func parseRateLimit(rateLimit string) (float64, int, error) {
 	rateParts := strings.FieldsFunc(rateLimit, func(r rune) bool { return r == ',' || r == ';' })
 	ratePartsLen := len(rateParts)
 	if ratePartsLen < 0 || ratePartsLen > 2 {
-		return 0, 0, fmt.Errorf("expected limit and optional burst value, comma or semicolon separated.")
+		return 0, 0, fmt.Errorf("expected limit and optional burst value, comma or semicolon separated")
 	}
 	limitStr := strings.TrimSpace(rateParts[0])
 	limit, err := strconv.ParseFloat(limitStr, 64)

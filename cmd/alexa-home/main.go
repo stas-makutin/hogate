@@ -41,16 +41,19 @@ var devicesFriendlyNames = map[string]string{
 
 // Alexa Smart Home definitions
 
+// InputEvent struct
 type InputEvent struct {
 	Directive Directive `json:"directive"`
 }
 
+// Directive struct
 type Directive struct {
 	Header   Header          `json:"header"`
 	Payload  json.RawMessage `json:"payload"`
 	Endpoint *Endpoint       `json:"endpoint"`
 }
 
+// Header struct
 type Header struct {
 	Namespace        string `json:"namespace"`
 	Name             string `json:"name"`
@@ -59,42 +62,50 @@ type Header struct {
 	CorrelationToken string `json:"correlationToken"`
 }
 
+// Endpoint struct
 type Endpoint struct {
 	Scope      Scope   `json:"scope"`
 	EndpointID string  `json:"endpointId"`
 	Cookie     *Cookie `json:"cookie,omitempty"`
 }
 
+// Scope struct
 type Scope struct {
 	Type  string `json:"type"`
 	Token string `json:"token"`
 }
 
+// Cookie struct
 type Cookie struct {
 	Detail1 *string `json:"detail1,omitempty"`
 	Detail2 *string `json:"detail2,omitempty"`
 }
 
+// Response struct
 type Response struct {
 	Event   Event       `json:"event"`
 	Context interface{} `json:"context,omitempty"`
 }
 
+// Event struct
 type Event struct {
 	Header   Header      `json:"header,omitempty"`
 	Payload  interface{} `json:"payload,omitempty"`
 	Endpoint *Endpoint   `json:"endpoint,omitempty"`
 }
 
+// ErrorPayload struct
 type ErrorPayload struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
 }
 
+// DiscoveryPayload struct
 type DiscoveryPayload struct {
 	Endpoints []DiscoveryEndpoint `json:"endpoints"`
 }
 
+// DiscoveryEndpoint struct
 type DiscoveryEndpoint struct {
 	EndpointID        string       `json:"endpointId"`
 	ManufacturerName  string       `json:"manufacturerName"`
@@ -105,6 +116,7 @@ type DiscoveryEndpoint struct {
 	Capabilities      []Capability `json:"capabilities"`
 }
 
+// Capability struct
 type Capability struct {
 	Type                       string                      `json:"type"`
 	Interface                  string                      `json:"interface"`
@@ -115,6 +127,7 @@ type Capability struct {
 	CameraStreamConfigurations []CameraStreamConfiguration `json:"cameraStreamConfigurations,omitempty"`
 }
 
+// CameraStreamConfiguration struct
 type CameraStreamConfiguration struct {
 	Protocols          []string     `json:"protocols"`
 	Resolutions        []Resolution `json:"resolutions"`
@@ -123,28 +136,31 @@ type CameraStreamConfiguration struct {
 	AudioCodecs        []string     `json:"audioCodecs"`
 }
 
+// Resolution struct
 type Resolution struct {
 	Width  int64 `json:"width"`
 	Height int64 `json:"height"`
 }
 
+// Properties struct
 type Properties struct {
 	Supported           []Supported `json:"supported"`
 	ProactivelyReported bool        `json:"proactivelyReported"`
 	Retrievable         bool        `json:"retrievable"`
 }
 
+// Supported struct
 type Supported struct {
 	Name string `json:"name"`
 }
 
 // Home endpoint
-var devicesUrl, actionUrl string
+var devicesURL, actionURL string
 
 func init() {
 	hostPrefix := os.Getenv("TARGET_HOST_URL_PREFIX")
-	devicesUrl = hostPrefix + "/yandex/home/v1.0/user/devices"
-	actionUrl = hostPrefix + "/yandex/home/v1.0/user/devices/action"
+	devicesURL = hostPrefix + "/yandex/home/v1.0/user/devices"
+	actionURL = hostPrefix + "/yandex/home/v1.0/user/devices/action"
 }
 
 func internalError() (namespace, name string, payload, context interface{}) {
@@ -175,7 +191,7 @@ func discovery(event InputEvent) (namespace, name string, payload, context inter
 		return invalidAuthorizationError()
 	}
 	client := http.Client{Timeout: time.Second * 2}
-	request, error := http.NewRequest("GET", devicesUrl, nil)
+	request, error := http.NewRequest("GET", devicesURL, nil)
 	if error != nil {
 		return unavailableError()
 	}
@@ -219,30 +235,30 @@ func discovery(event InputEvent) (namespace, name string, payload, context inter
 			return unavailableError()
 		}
 
-		deviceId, _ := v["id"].(string)
+		deviceID, _ := v["id"].(string)
 		deviceType, _ := v["type"].(string)
 
-		if deviceId == "" || !(deviceType == "devices.types.light" || deviceType == "devices.types.switch") {
+		if deviceID == "" || !(deviceType == "devices.types.light" || deviceType == "devices.types.switch") {
 			continue
 		}
-		friendlyName, ok := devicesFriendlyNames[deviceId]
+		friendlyName, ok := devicesFriendlyNames[deviceID]
 		if !ok {
 			continue
 		}
 
 		pl.Endpoints = append(pl.Endpoints, DiscoveryEndpoint{
-			EndpointID:        deviceId,
+			EndpointID:        deviceID,
 			ManufacturerName:  "DIY",
 			Description:       "DIY Switch",
 			FriendlyName:      friendlyName,
 			DisplayCategories: []string{"SWITCH", "LIGHT"},
 			Capabilities: []Capability{
-				Capability{
+				{
 					Type:      "AlexaInterface",
 					Interface: "Alexa.PowerController",
 					Version:   "3",
 				},
-				Capability{
+				{
 					Type:      "AlexaInterface",
 					Interface: "Alexa",
 					Version:   "3",
@@ -263,7 +279,7 @@ func powerController(event InputEvent) (namespace, name string, payload, context
 	}
 	action := event.Directive.Header.Name == "TurnOn"
 	client := http.Client{Timeout: time.Second * 3}
-	request, error := http.NewRequest("POST", actionUrl, bytes.NewBuffer([]byte(
+	request, error := http.NewRequest("POST", actionURL, bytes.NewBuffer([]byte(
 		fmt.Sprintf(
 			`{"payload":{"devices":[{"id":"%v","capabilities":[{"type":"devices.capabilities.on_off","state":{"instance":"on","value":%t}}]}]}}`,
 			event.Directive.Endpoint.EndpointID,
@@ -293,7 +309,7 @@ func powerController(event InputEvent) (namespace, name string, payload, context
 	}
 
 	return "Alexa", "Response", struct{}{}, map[string]interface{}{
-		"properties": []map[string]interface{}{map[string]interface{}{
+		"properties": []map[string]interface{}{{
 			"namespace":                 "Alexa.PowerController",
 			"name":                      "powerState",
 			"value":                     value,
@@ -303,6 +319,7 @@ func powerController(event InputEvent) (namespace, name string, payload, context
 	}
 }
 
+// QueryHandler method - entry point
 func QueryHandler(ctx context.Context, event InputEvent) (*Response, error) {
 	var namespace, name string
 	var payload, context interface{}

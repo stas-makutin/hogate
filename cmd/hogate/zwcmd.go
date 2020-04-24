@@ -120,13 +120,13 @@ func zwCommand(arg ...string) (retCode int, attributes zwValues) {
 	return
 }
 
-func zwBasicSet(nodeId byte, level byte) int {
-	code, _ := zwCommand("basic", strconv.Itoa(int(nodeId)), strconv.Itoa(int(level)))
+func zwBasicSet(nodeID byte, level byte) int {
+	code, _ := zwCommand("basic", strconv.Itoa(int(nodeID)), strconv.Itoa(int(level)))
 	return code
 }
 
-func zwBasicGet(nodeId byte) (int, byte) {
-	code, attr := zwCommand("basic", strconv.Itoa(int(nodeId)), "--get")
+func zwBasicGet(nodeID byte) (int, byte) {
+	code, attr := zwCommand("basic", strconv.Itoa(int(nodeID)), "--get")
 	if code == zwSuccess {
 		if value, ok := attr["value"]; ok {
 			if v, err := strconv.Atoi(value); err == nil {

@@ -16,13 +16,13 @@ func addOAuthRoutes(router *http.ServeMux) {
 
 func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 	responseType := r.URL.Query().Get("response_type")
-	clientId := r.URL.Query().Get("client_id")
-	redirectUri := r.URL.Query().Get("redirect_uri")
+	clientID := r.URL.Query().Get("client_id")
+	redirectURI := r.URL.Query().Get("redirect_uri")
 	scope := r.URL.Query().Get("scope")
 	state := r.URL.Query().Get("state")
 
 	// general validation
-	if responseType != "code" || clientId == "" || redirectUri == "" || state == "" {
+	if responseType != "code" || clientID == "" || redirectURI == "" || state == "" {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -32,9 +32,9 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// validate clientId, redirectUrl, and scope
-	ci, ok := credentials.client(clientId)
-	if !ok || ci.options&coAuthorizationCode == 0 || !ci.matchRedirectUri(redirectUri) || !ci.scope.test(parsedScope, false) {
+	// validate clientID, redirectUrl, and scope
+	ci, ok := credentials.client(clientID)
+	if !ok || ci.options&coAuthorizationCode == 0 || !ci.matchRedirectURI(redirectURI) || !ci.scope.test(parsedScope, false) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -48,19 +48,19 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		targetUrl := redirectUri
-		if strings.Contains(targetUrl, "?") {
-			targetUrl += "&"
+		targetURL := redirectURI
+		if strings.Contains(targetURL, "?") {
+			targetURL += "&"
 		} else {
-			targetUrl += "?"
+			targetURL += "?"
 		}
 
 		action := r.URL.Query().Get("action")
 		if action == "deny" {
-			targetUrl += fmt.Sprintf(
+			targetURL += fmt.Sprintf(
 				"error=access_denied&error_description=The+request+denied.&state=%v", url.QueryEscape(state),
 			)
-			w.Header().Set("Location", targetUrl)
+			w.Header().Set("Location", targetURL)
 			w.WriteHeader(http.StatusFound)
 			return
 		}
@@ -69,29 +69,29 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 		password := r.PostForm.Get("password")
 
 		if ui, ok := credentials.verifyUser(username, password); ok && ui.scope.test(parsedScope, false) {
-			code, err := createAuthToken(authTokenCode, clientId, ui.name, parsedScope)
+			code, err := createAuthToken(authTokenCode, clientID, ui.name, parsedScope)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			targetUrl += fmt.Sprintf(
-				"code=%v&client_id=%v&scope=%v&state=%v", url.QueryEscape(code), url.QueryEscape(clientId), url.QueryEscape(scope), url.QueryEscape(state),
+			targetURL += fmt.Sprintf(
+				"code=%v&client_id=%v&scope=%v&state=%v", url.QueryEscape(code), url.QueryEscape(clientID), url.QueryEscape(scope), url.QueryEscape(state),
 			)
-			w.Header().Set("Location", targetUrl)
+			w.Header().Set("Location", targetURL)
 			w.WriteHeader(http.StatusFound)
 			return
-		} else {
-			message = "User unknown or has no permission."
 		}
+
+		message = "User unknown or has no permission."
 	}
 
-	actionUrl := fmt.Sprintf(
+	actionURL := fmt.Sprintf(
 		"?response_type=%v&client_id=%v&redirect_uri=%v&scope=%v&state=%v&action=",
-		url.QueryEscape(responseType), url.QueryEscape(clientId), url.QueryEscape(redirectUri), url.QueryEscape(scope), url.QueryEscape(state),
+		url.QueryEscape(responseType), url.QueryEscape(clientID), url.QueryEscape(redirectURI), url.QueryEscape(scope), url.QueryEscape(state),
 	)
 
 	var scopeList strings.Builder
-	for k, _ := range parsedScope {
+	for k := range parsedScope {
 		name := k.displayName()
 		if name == "" {
 			name = fmt.Sprintf("Code %v", k)
@@ -138,7 +138,7 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 	</form>
 </body>
 </html>`,
-		actionUrl+"deny", html.EscapeString(ci.name), scopeList.String(), message, actionUrl+"allow",
+		actionURL+"deny", html.EscapeString(ci.name), scopeList.String(), message, actionURL+"allow",
 	)
 }
 
@@ -147,8 +147,8 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	successfulResponse := func(clientId, userName string, scope scopeSet, setRefreshToken bool) {
-		accessToken, err := createAuthToken(authTokenAccess, clientId, userName, scope)
+	successfulResponse := func(clientID, userName string, scope scopeSet, setRefreshToken bool) {
+		accessToken, err := createAuthToken(authTokenAccess, clientID, userName, scope)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
@@ -156,7 +156,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 
 		refreshToken := ""
 		if setRefreshToken {
-			refreshToken, err = createAuthToken(authTokenRefresh, clientId, userName, scope)
+			refreshToken, err = createAuthToken(authTokenRefresh, clientID, userName, scope)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
@@ -188,38 +188,38 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 	switch grantType {
 	case "authorization_code":
 		code := r.Form.Get("code")
-		clientId := r.Form.Get("client_id")
+		clientID := r.Form.Get("client_id")
 		clientSecret := r.Form.Get("client_secret")
-		redirectUri := r.Form.Get("redirect_uri")
+		redirectURI := r.Form.Get("redirect_uri")
 
 		if clientSecret == "" {
-			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+			clientID, clientSecret = basicAuthPair(clientID, clientSecret)
 		}
 
-		if code == "" || clientId == "" || clientSecret == "" || redirectUri == "" {
+		if code == "" || clientID == "" || clientSecret == "" || redirectURI == "" {
 			errorCode = "invalid_request"
-		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret || !ci.matchRedirectUri(redirectUri) {
+		} else if ci, ok := credentials.client(clientID); !ok || clientSecret != ci.secret || !ci.matchRedirectURI(redirectURI) {
 			errorCode = "invalid_client"
 			errorStatus = http.StatusUnauthorized
-		} else if claims, err := parseAuthToken(code); err != nil || claims.Type != authTokenCode || clientId != claims.ClientId {
+		} else if claims, err := parseAuthToken(code); err != nil || claims.Type != authTokenCode || clientID != claims.ClientID {
 			errorCode = "invalid_grant"
 		} else {
-			successfulResponse(clientId, claims.UserName, newScopeSet(claims.Scope...), ci.options&coRefreshToken != 0)
+			successfulResponse(clientID, claims.UserName, newScopeSet(claims.Scope...), ci.options&coRefreshToken != 0)
 			return
 		}
 
 	case "client_credentials":
-		clientId := r.Form.Get("client_id")
+		clientID := r.Form.Get("client_id")
 		clientSecret := r.Form.Get("client_secret")
 		scope := r.Form.Get("scope")
 
 		if clientSecret == "" {
-			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+			clientID, clientSecret = basicAuthPair(clientID, clientSecret)
 		}
 
-		if clientId == "" || clientSecret == "" {
+		if clientID == "" || clientSecret == "" {
 			errorCode = "invalid_request"
-		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret {
+		} else if ci, ok := credentials.client(clientID); !ok || clientSecret != ci.secret {
 			errorCode = "invalid_client"
 			errorStatus = http.StatusUnauthorized
 		} else if ci.options&coClientCredentials == 0 {
@@ -227,36 +227,36 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) {
 			errorCode = "invalid_scope"
 		} else {
-			successfulResponse(clientId, "", parsedScope, ci.options&coRefreshToken != 0)
+			successfulResponse(clientID, "", parsedScope, ci.options&coRefreshToken != 0)
 			return
 		}
 
 	case "refresh_token":
 		refreshToken := r.Form.Get("refresh_token")
-		clientId := r.Form.Get("client_id")
+		clientID := r.Form.Get("client_id")
 		clientSecret := r.Form.Get("client_secret")
 		scope := r.Form.Get("scope")
 
 		if clientSecret == "" {
-			clientId, clientSecret = basicAuthPair(clientId, clientSecret)
+			clientID, clientSecret = basicAuthPair(clientID, clientSecret)
 		}
 
-		if refreshToken == "" || clientId == "" || clientSecret == "" {
+		if refreshToken == "" || clientID == "" || clientSecret == "" {
 			errorCode = "invalid_request"
-		} else if ci, ok := credentials.client(clientId); !ok || clientSecret != ci.secret {
+		} else if ci, ok := credentials.client(clientID); !ok || clientSecret != ci.secret {
 			errorCode = "invalid_client"
 			errorStatus = http.StatusUnauthorized
 		} else if ci.options&coRefreshToken == 0 {
 			errorCode = "unauthorized_client"
-		} else if claims, err := parseAuthToken(refreshToken); err != nil || claims.Type != authTokenRefresh || claims.ClientId != clientId {
+		} else if claims, err := parseAuthToken(refreshToken); err != nil || claims.Type != authTokenRefresh || claims.ClientID != clientID {
 			errorCode = "invalid_grant"
 		} else if originScope := newScopeSet(claims.Scope...); scope == "" {
-			successfulResponse(clientId, claims.UserName, originScope, true)
+			successfulResponse(clientID, claims.UserName, originScope, true)
 			return
 		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) || !parsedScope.same(originScope) {
 			errorCode = "invalid_scope"
 		} else {
-			successfulResponse(clientId, claims.UserName, originScope, true)
+			successfulResponse(clientID, claims.UserName, originScope, true)
 			return
 		}
 

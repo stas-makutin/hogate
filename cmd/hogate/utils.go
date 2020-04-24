@@ -139,7 +139,7 @@ func jsonEscape(i string) string {
 	return s[1 : len(s)-1]
 }
 
-func parseJsonRequest(v interface{}, w http.ResponseWriter, r *http.Request) bool {
+func parseJSONRequest(v interface{}, w http.ResponseWriter, r *http.Request) bool {
 	contentType := r.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "application/json") {
 		http.Error(w, http.StatusText(http.StatusUnsupportedMediaType), http.StatusForbidden)

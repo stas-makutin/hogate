@@ -32,9 +32,9 @@ func yandexHomeDevices(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(YandexHomeResponse{
-		RequestId: r.Header.Get("X-Request-Id"),
+		RequestID: r.Header.Get("X-Request-Id"),
 		Payload: YandexHomeDevices{
-			UserId:  claim.UserName,
+			UserID:  claim.UserName,
 			Devices: devices,
 		},
 	})
@@ -42,22 +42,22 @@ func yandexHomeDevices(w http.ResponseWriter, r *http.Request) {
 
 func yandexHomeQuery(w http.ResponseWriter, r *http.Request) {
 	var req YandexHomeQueryRequest
-	if !parseJsonRequest(&req, w, r) {
+	if !parseJSONRequest(&req, w, r) {
 		return
 	}
 
 	devices := make([]YandexHomeDeviceState, 0, len(req.Devices))
 	for _, v := range req.Devices {
-		if di, ok := yxhDevices[v.Id]; ok {
+		if di, ok := yxhDevices[v.ID]; ok {
 			devices = append(devices, di.query())
 		} else {
-			devices = append(devices, YandexHomeDeviceState{Id: v.Id, ErrorCode: yhDeviceErrorNotFound})
+			devices = append(devices, YandexHomeDeviceState{ID: v.ID, ErrorCode: yhDeviceErrorNotFound})
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(YandexHomeResponse{
-		RequestId: r.Header.Get("X-Request-Id"),
+		RequestID: r.Header.Get("X-Request-Id"),
 		Payload: YandexHomeDevicesState{
 			Devices: devices,
 		},
@@ -66,17 +66,17 @@ func yandexHomeQuery(w http.ResponseWriter, r *http.Request) {
 
 func yandexHomeAction(w http.ResponseWriter, r *http.Request) {
 	var req YandexHomeActionRequest
-	if !parseJsonRequest(&req, w, r) {
+	if !parseJSONRequest(&req, w, r) {
 		return
 	}
 
 	devices := make([]YandexHomeDeviceActionResult, 0, len(req.Payload.Devices))
 	for _, v := range req.Payload.Devices {
-		if di, ok := yxhDevices[v.Id]; ok {
+		if di, ok := yxhDevices[v.ID]; ok {
 			devices = append(devices, di.action(v.Capabilities))
 		} else {
 			devices = append(devices, YandexHomeDeviceActionResult{
-				Id: v.Id,
+				ID: v.ID,
 				ActionResult: YandexHomeActionResult{
 					Status:    yhDeviceStatusError,
 					ErrorCode: yhDeviceErrorNotFound,
@@ -87,7 +87,7 @@ func yandexHomeAction(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(YandexHomeResponse{
-		RequestId: r.Header.Get("X-Request-Id"),
+		RequestID: r.Header.Get("X-Request-Id"),
 		Payload: YandexHomeDevicesActionResult{
 			Devices: devices,
 		},

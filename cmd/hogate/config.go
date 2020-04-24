@@ -13,9 +13,10 @@ import (
 var config Config
 var configPath string
 
+// Config struct
 type Config struct {
 	WorkingDirectory string           `yaml:"workingDir,omitempty"`
-	HttpServer       HttpServerConfig `yaml:"httpServer"`
+	HTTPServer       HTTPServerConfig `yaml:"httpServer"`
 	Routes           *[]Route         `yaml:"routes"`
 	*Authorization   `yaml:"authorization"`
 	*Credentials     `yaml:"credentials"`
@@ -24,7 +25,8 @@ type Config struct {
 	*ZwCmd           `yaml:"zwCmd"`
 }
 
-type HttpServerConfig struct {
+// HTTPServerConfig struct
+type HTTPServerConfig struct {
 	Port              int            `yaml:"port"`
 	MaxConnections    uint           `yaml:"maxConnections,omitempty"`
 	ReadTimeout       uint           `yaml:"readTimeout,omitempty"`       // milliseconds
@@ -32,12 +34,13 @@ type HttpServerConfig struct {
 	WriteTimeout      uint           `yaml:"writeTimeout,omitempty"`      // milliseconds
 	IdleTimeout       uint           `yaml:"idleTimeout,omitempty"`       // milliseconds
 	MaxHeaderBytes    uint32         `yaml:"maxHeaderBytes,omitempty"`
-	Log               *HttpServerLog `yaml:"log,omitempty"`
+	Log               *HTTPServerLog `yaml:"log,omitempty"`
 	*TLSFiles         `yaml:"tlsFiles,omitempty"`
 	*TLSAcme          `yaml:"tlsAcme,omitempty"`
 }
 
-type HttpServerLog struct {
+// HTTPServerLog struct
+type HTTPServerLog struct {
 	Dir            string        `yaml:"dir,omitempty"`
 	File           string        `yaml:"file,omitempty"`
 	DirMode        os.FileMode   `yaml:"dirMode,omitempty"`
@@ -51,11 +54,13 @@ type HttpServerLog struct {
 	MaxAgeDuration time.Duration `yaml:"-"`
 }
 
+// TLSFiles struct
 type TLSFiles struct {
 	Certificate string `yaml:"certificate"`
 	Key         string `yaml:"key"`
 }
 
+// TLSAcme struct
 type TLSAcme struct {
 	Email         string   `yaml:"email,omitempty"`        // contact email address
 	HostWhitelist []string `yaml:"hostWhitelist"`          // allowed host names
@@ -64,6 +69,7 @@ type TLSAcme struct {
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
 
+// Route struct
 type Route struct {
 	Type        string `yaml:"type"`
 	Path        string `yaml:"path,omitempty"`
@@ -72,56 +78,65 @@ type Route struct {
 	Methods     string `yaml:"methods,omitempty"`
 }
 
+// Authorization struct
 type Authorization struct {
 	TokenSecret string                 `yaml:"tokenSecret,omitempty"`
 	LifeTime    *AuthorizationLifeTime `yaml:"lifeTime,omitempty"`
 }
 
+// AuthorizationLifeTime struct
 type AuthorizationLifeTime struct {
 	CodeToken    string `yaml:"codeToken,omitempty"`
 	AccessToken  string `yaml:"accessToken,omitempty"`
 	RefreshToken string `yaml:"refreshToken,omitempty"`
 }
 
+// Credentials struct
 type Credentials struct {
 	Users   []User   `yaml:"users"`
 	Clients []Client `yaml:"clients,omitempty"`
 }
 
+// User struct
 type User struct {
 	Name     string `yaml:"name"`
 	Password string `yaml:"password"`
 	Scope    string `yaml:"scope,omitempty"`
 }
 
+// Client struct
 type Client struct {
-	Id          string   `yaml:"id"`
+	ID          string   `yaml:"id"`
 	Name        string   `yaml:"name,omitempty"`
 	Secret      string   `yaml:"secret"`
-	RedirectUri []string `yaml:"redirectUri,omitempty"`
+	RedirectURI []string `yaml:"redirectUri,omitempty"`
 	Options     string   `yaml:"options"`
 	Scope       string   `yaml:"scope,omitempty"`
 }
 
+// YandexHome struct
 type YandexHome struct {
 	Devices []YandexHomeDeviceConfig `yaml:"devices,omitempty"`
 }
 
+// YandexHomeDeviceConfig struct
 type YandexHomeDeviceConfig struct {
-	Id           string                       `yaml:"id"`
+	ID           string                       `yaml:"id"`
 	Name         string                       `yaml:"name"`
 	Description  string                       `yaml:"description,omitempty"`
 	Room         string                       `yaml:"room,omitempty"`
 	Type         string                       `yaml:"type"`
-	ZwId         byte                         `yaml:"zwid"`
+	ZwID         byte                         `yaml:"zwid"`
 	Capabilities []YandexHomeCapabilityConfig `yaml:"capabilities,omitempty"`
 }
 
+// YandexHomeCapabilityConfig struct
 type YandexHomeCapabilityConfig struct {
 	Retrievable bool
 	Parameters  interface{}
 }
 
+// UnmarshalYAML for YandexHomeCapabilityConfig
 func (c *YandexHomeCapabilityConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v map[string]bool
 	unmarshal(&v)
@@ -144,14 +159,17 @@ func (c *YandexHomeCapabilityConfig) UnmarshalYAML(unmarshal func(interface{}) e
 	return nil
 }
 
+// YandexHomeParametersOnOff struct
 type YandexHomeParametersOnOff struct {
 }
 
+// YandexHomeParametersModeConfig struct
 type YandexHomeParametersModeConfig struct {
 	Instance string   `yaml:"instance"`
 	Values   []string `yaml:"values"`
 }
 
+// YandexHomeParametersRangeConfig struct
 type YandexHomeParametersRangeConfig struct {
 	Instance     string  `yaml:"instance"`
 	Units        string  `yaml:"units,omitempty"`
@@ -161,10 +179,12 @@ type YandexHomeParametersRangeConfig struct {
 	Precision    float64 `yaml:"precision,omitempty"`
 }
 
+// YandexDialogs struct
 type YandexDialogs struct {
 	Tales string `yaml:"tales,omitempty"`
 }
 
+// ZwCmd struct
 type ZwCmd struct {
 	Path    string `yaml:"path,omitempty"`
 	Timeout int    `yaml:"timeout,omitempty"`
@@ -203,7 +223,7 @@ func loadConfig(cfgFile string) error {
 	}
 
 	validate := []func(cfgError configError){
-		validateHttpServerConfig,
+		validateHTTPServerConfig,
 		validateRouteConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,

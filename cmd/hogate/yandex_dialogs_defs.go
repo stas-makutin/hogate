@@ -2,6 +2,7 @@ package main
 
 // request
 
+// YandexDialogsRequestEnvelope struct
 type YandexDialogsRequestEnvelope struct {
 	Meta           *YandexDialogsMeta          `json:"meta,omitempty"`
 	Request        *YandexDialogsRequest       `json:"request,omitempty"`
@@ -10,21 +11,24 @@ type YandexDialogsRequestEnvelope struct {
 	Version        string                      `json:"version"`
 }
 
+// YandexDialogsMeta struct
 type YandexDialogsMeta struct {
 	Locale     string                 `json:"locale"`
 	Timezone   string                 `json:"timezone"`
-	ClientId   string                 `json:"client_id,omitempty"`
+	ClientID   string                 `json:"client_id,omitempty"`
 	Interfaces map[string]interface{} `json:"interfaces,omitempty"`
 }
 
+// YandexDialogsRequestSession struct
 type YandexDialogsRequestSession struct {
 	New       bool   `json:"new"`
-	MessageId int    `json:"message_id"`
-	SessionId string `json:"session_id"`
-	SkillId   string `json:"skill_id"`
-	UserId    string `json:"user_id"`
+	MessageID int    `json:"message_id"`
+	SessionID string `json:"session_id"`
+	SkillID   string `json:"skill_id"`
+	UserID    string `json:"user_id"`
 }
 
+// YandexDialogsRequest struct
 type YandexDialogsRequest struct {
 	Command           string               `json:"command"`
 	OriginalUtterance string               `json:"original_utterance"`
@@ -34,15 +38,18 @@ type YandexDialogsRequest struct {
 	Nlu               *YandexDialogsNlu    `json:"nlu,omitempty"`
 }
 
+// YandexDialogsMarkup struct
 type YandexDialogsMarkup struct {
 	DangerousContext bool `json:"dangerous_context,omitempty"`
 }
 
+// YandexDialogsNlu struct
 type YandexDialogsNlu struct {
 	Tokens   []string              `json:"tokens"`
 	Entities []YandexDialogsEntity `json:"entities"`
 }
 
+// YandexDialogsEntity struct
 type YandexDialogsEntity struct {
 	Tokens YandexDialogsEntityTokens `json:"tokens"`
 	Type   string                    `json:"type"`
@@ -57,23 +64,27 @@ const (
 	ydYandexNumber   = "YANDEX.NUMBER"
 )
 
+// YandexDialogsEntityTokens struct
 type YandexDialogsEntityTokens struct {
 	Start int `json:"start"`
 	End   int `json:"end"`
 }
 
+// YandexDialogsEntityFio struct
 type YandexDialogsEntityFio struct {
 	FirstName      string `json:"first_name,omitempty"`
 	PatronymicName string `json:"patronymic_name,omitempty"`
 	LastName       string `json:"last_name,omitempty"`
 }
 
+// YandexDialogsEntityGeo struct
 type YandexDialogsEntityGeo struct {
 	Country string `json:"country,omitempty"`
 	City    string `json:"city,omitempty"`
 	Street  string `json:"street,omitempty"`
 }
 
+// YandexDialogsEntityDateTime struct
 type YandexDialogsEntityDateTime struct {
 	Year             int  `json:"year,omitempty"`
 	YearIsRelative   bool `json:"year_is_relative ,omitempty"`
@@ -89,6 +100,7 @@ type YandexDialogsEntityDateTime struct {
 
 // response
 
+// YandexDialogsResponseEnvelope struct
 type YandexDialogsResponseEnvelope struct {
 	Response       *YandexDialogsResponse       `json:"response,omitempty"`
 	AccountLinking *struct{}                    `json:"start_account_linking,omitempty"`
@@ -96,12 +108,14 @@ type YandexDialogsResponseEnvelope struct {
 	Version        string                       `json:"version"`
 }
 
+// YandexDialogsResponseSession struct
 type YandexDialogsResponseSession struct {
-	SessionId string `json:"session_id"`
-	MessageId int    `json:"message_id"`
-	UserId    string `json:"user_id"`
+	SessionID string `json:"session_id"`
+	MessageID int    `json:"message_id"`
+	UserID    string `json:"user_id"`
 }
 
+// YandexDialogsResponse struct
 type YandexDialogsResponse struct {
 	Text       string                `json:"text"`
 	TTS        string                `json:"tts,omitempty"`
@@ -110,9 +124,10 @@ type YandexDialogsResponse struct {
 	EndSession bool                  `json:"end_session"`
 }
 
+// YandexDialogsButton struct
 type YandexDialogsButton struct {
 	Title   string      `json:"title"`
-	Url     string      `json:"url,omitempty"`
+	URL     string      `json:"url,omitempty"`
 	Payload interface{} `json:"payload,omitempty"`
 	Hide    bool        `json:"hide,omitempty"`
 }

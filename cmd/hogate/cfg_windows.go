@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 )
 
+// NewLine constant for Windows
 const NewLine = "\r\n"
 
 func defaultConfigFile() string {
