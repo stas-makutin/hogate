@@ -8,6 +8,7 @@ type YandexDialogsRequestEnvelope struct {
 	Request        *YandexDialogsRequest       `json:"request,omitempty"`
 	AccountLinking *struct{}                   `json:"account_linking_complete_event,omitempty"`
 	Session        YandexDialogsRequestSession `json:"session"`
+	State          *YandexDialogsRequestState  `json:"state"`
 	Version        string                      `json:"version"`
 }
 
@@ -26,6 +27,12 @@ type YandexDialogsRequestSession struct {
 	SessionID string `json:"session_id"`
 	SkillID   string `json:"skill_id"`
 	UserID    string `json:"user_id"`
+}
+
+// YandexDialogsRequestState struct
+type YandexDialogsRequestState struct {
+	Session map[string]string `json:"session,omitempty"`
+	User    interface{}       `json:"user,omitempty"`
 }
 
 // YandexDialogsRequest struct
@@ -105,6 +112,8 @@ type YandexDialogsResponseEnvelope struct {
 	Response       *YandexDialogsResponse       `json:"response,omitempty"`
 	AccountLinking *struct{}                    `json:"start_account_linking,omitempty"`
 	Session        YandexDialogsResponseSession `json:"session"`
+	SessionState   interface{}                  `json:"session_state,omitempty"`
+	UserState      interface{}                  `json:"user_state_update,omitempty"`
 	Version        string                       `json:"version"`
 }
 
