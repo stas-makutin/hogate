@@ -22,6 +22,8 @@ const (
 	routeYandexHomeAction
 
 	routeYandexDialogsTales
+
+	routeAmazonAlexaWhistles
 )
 
 type routeInfo struct {
@@ -88,6 +90,14 @@ var dedicatedRoutes = map[int]*routeInfo{
 		path:        "/yandex/dialogs/tales",
 		rateLimit:   1000,
 		rateBurst:   300,
+		maxBodySize: 102400,
+		methods:     []string{"POST", "OPTIONS"},
+	},
+
+	routeAmazonAlexaWhistles: {
+		path:        "/amazon/alexa/whistles",
+		rateLimit:   0,
+		rateBurst:   0,
 		maxBodySize: 102400,
 		methods:     []string{"POST", "OPTIONS"},
 	},
