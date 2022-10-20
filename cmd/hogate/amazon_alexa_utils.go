@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 	"io/ioutil"
@@ -79,42 +80,59 @@ func (ac *alexaCertificate) valid() bool {
 	return true
 }
 
-func validateAlexaRequest(r *http.Request) bool {
+func acceptAlexaRequest(r *http.Request) *AlexaRequestEnvelope {
 	signatureCertUrl := r.Header.Get("SignatureCertChainUrl")
 	signature, err := base64.StdEncoding.DecodeString(r.Header.Get("Signature-256"))
 	if err != nil {
-		return false
+		return nil
 	}
 
 	keyAlgorithm, key := signatureCertificate(signatureCertUrl)
 	if keyAlgorithm == x509.UnknownPublicKeyAlgorithm {
-		return false
+		return nil
 	}
 
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 32768))
 	if err != nil {
-		return false
+		return nil
 	}
 	bodyHash := sha256.Sum256(body)
 
 	switch keyAlgorithm {
 	case x509.RSA:
 		if err := rsa.VerifyPKCS1v15(key.(*rsa.PublicKey), crypto.SHA256, bodyHash[:], signature); err != nil {
-			return false
+			return nil
 		}
 	case x509.ECDSA:
 		if !ecdsa.VerifyASN1(key.(*ecdsa.PublicKey), bodyHash[:], signature) {
-			return false
+			return nil
 		}
 	case x509.Ed25519:
 		if !ed25519.Verify(key.(ed25519.PublicKey), bodyHash[:], signature) {
-			return false
+			return nil
 		}
 	default:
-		return false
+		return nil
 	}
 
-	return true
+	var request *AlexaRequestEnvelope
+	if err := json.Unmarshal(body, &request); err != nil {
+		return nil
+	}
+
+	if request.Request == nil || request.Request.Timestamp == "" {
+		return nil
+	}
+	ts, err := time.Parse(time.RFC3339, request.Request.Timestamp)
+	if err != nil {
+		return nil
+	}
+	d := time.Since(ts)
+	if d < 0 || d > 150*time.Second {
+		return nil
+	}
+
+	return request
 }
 
 func signatureCertificate(certificateUrl string) (x509.PublicKeyAlgorithm, any) {

@@ -10,12 +10,15 @@ func addAmazonAlexaRoutes(router *http.ServeMux) {
 }
 
 func amazonAlexaWhistles(w http.ResponseWriter, r *http.Request) {
-	if !validateAlexaRequest(r) {
+	request := acceptAlexaRequest(r)
+	if request == nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(AlexaResponseEnvelope{
+		Version: "1.0",
 		Response: &AlexaResponse{
 			OutputSpeeech: &AlexaOutputSpeeech{
 				Type: "PlainText",
