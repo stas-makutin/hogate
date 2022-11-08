@@ -620,7 +620,7 @@ func yandexDialogsTalesReaction(r YandexDialogsRequest) (ydtReaction, interface{
 		for i, f := range fs {
 			mk := 0
 			for _, k := range f.keys {
-				if strings.Index(tokens, k) >= 0 {
+				if strings.Contains(tokens, k) {
 					mk++
 				}
 				if tokens == k {

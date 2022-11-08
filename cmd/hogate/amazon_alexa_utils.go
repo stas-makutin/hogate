@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -92,7 +91,7 @@ func acceptAlexaRequest(r *http.Request) *AlexaRequestEnvelope {
 		return nil
 	}
 
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 32768))
+	body, err := io.ReadAll(io.LimitReader(r.Body, 32768))
 	if err != nil {
 		return nil
 	}
@@ -120,10 +119,10 @@ func acceptAlexaRequest(r *http.Request) *AlexaRequestEnvelope {
 		return nil
 	}
 
-	if request.Request == nil || request.Request.Timestamp == "" {
+	if request.Request == nil || request.Request.Timestamp() == "" {
 		return nil
 	}
-	ts, err := time.Parse(time.RFC3339, request.Request.Timestamp)
+	ts, err := time.Parse(time.RFC3339, request.Request.Timestamp())
 	if err != nil {
 		return nil
 	}

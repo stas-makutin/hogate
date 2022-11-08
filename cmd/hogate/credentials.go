@@ -234,7 +234,7 @@ func parseScope(scope string) (scopeSet, error) {
 		if word != "" {
 			found := false
 			for k, v := range scopeNames {
-				if strings.ToLower(word) == strings.ToLower(v) {
+				if strings.EqualFold(word, v) {
 					rv[k] = struct{}{}
 					found = true
 					break

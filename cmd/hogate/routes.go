@@ -259,7 +259,7 @@ func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
 		limiter := rate.NewLimiter(rate.Limit(ri.rateLimit), ri.rateBurst)
 		handler = func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if limiter.Allow() == false {
+				if !limiter.Allow() {
 					http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 					return
 				}

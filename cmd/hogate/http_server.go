@@ -239,6 +239,7 @@ func httpSetLogBulkData(r *http.Request, data logData) {
 	}
 }
 
+/*
 func httpSetLogData(r *http.Request, group, key, value string) {
 	if d, ok := r.Context().Value(httpLogMessageKey{}).(logData); ok {
 		g, ok := d[group]
@@ -249,6 +250,7 @@ func httpSetLogData(r *http.Request, group, key, value string) {
 		g[key] = value
 	}
 }
+*/
 
 func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -304,7 +306,7 @@ func logHandler(errorLog *log.Logger) func(http.Handler) http.Handler {
 					_, err = f.Write(b.Bytes())
 				}
 				if err != nil {
-					errorLog.Printf("Unable to log HTTP request:%v%v%vreason: %v", NewLine, string(b.Bytes()), NewLine, err)
+					errorLog.Printf("Unable to log HTTP request:%v%v%vreason: %v", NewLine, b.String(), NewLine, err)
 				}
 			}()
 			next.ServeHTTP(lrw, r.WithContext(ctx))

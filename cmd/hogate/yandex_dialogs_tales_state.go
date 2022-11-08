@@ -20,11 +20,6 @@ const (
 	ydtTypeJoke
 )
 
-type serializer interface {
-	write(w io.Writer) error
-	read(r io.Reader) error
-}
-
 type ydtStateType byte
 
 const (
@@ -53,7 +48,7 @@ func (s *yandexDialogsTalesItem) read(r io.Reader) error {
 	if err == nil {
 		err = binary.Read(r, binary.LittleEndian, &s.index)
 	}
-	return nil
+	return err
 }
 
 type yandexDialogsTalesSlice struct {
@@ -99,15 +94,15 @@ func (s *yandexDialogsTalesSelect) read(r io.Reader) error {
 }
 
 func serializeState(w io.Writer, s interface{}) (err error) {
-	switch s.(type) {
+	switch s := s.(type) {
 	case yandexDialogsTalesItem:
 		if err = binary.Write(w, binary.LittleEndian, ydtStateItem); err == nil {
-			si := s.(yandexDialogsTalesItem)
+			si := s
 			err = si.write(w)
 		}
 	case []yandexDialogsTalesItem:
 		if err = binary.Write(w, binary.LittleEndian, ydtStateItemArray); err == nil {
-			items := s.([]yandexDialogsTalesItem)
+			items := s
 			if l := len(items); l >= 0 && l <= math.MaxUint32 {
 				if err = binary.Write(w, binary.LittleEndian, uint32(l)); err == nil {
 					for _, v := range items {
@@ -122,12 +117,12 @@ func serializeState(w io.Writer, s interface{}) (err error) {
 		}
 	case yandexDialogsTalesSlice:
 		if err = binary.Write(w, binary.LittleEndian, ydtStateSlice); err == nil {
-			si := s.(yandexDialogsTalesSlice)
+			si := s
 			err = si.write(w)
 		}
 	case yandexDialogsTalesSelect:
 		if err = binary.Write(w, binary.LittleEndian, ydtStateSelect); err == nil {
-			si := s.(yandexDialogsTalesSelect)
+			si := s
 			err = si.write(w)
 		}
 	default:

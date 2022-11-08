@@ -46,7 +46,7 @@ func (r *logRotation) rotate(logFile string, errorLog *log.Logger) {
 				if err != nil {
 					errorLog.Printf("%vstatus file error: %v", errorPrefix, err)
 				}
-			} else if time.Now().Sub(sfi.ModTime()) > logCfg.MaxAgeDuration {
+			} else if time.Since(sfi.ModTime()) > logCfg.MaxAgeDuration {
 				rotate = true
 			}
 		}
