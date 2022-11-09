@@ -23,7 +23,7 @@ func (c *AlexaRequestEnvelope) UnmarshalJSON(data []byte) error {
 	}
 
 	var baseRequest *AlexaBaseRequest
-	if err := json.Unmarshal(data, c.Request); err != nil {
+	if err := json.Unmarshal(data, &baseRequest); err != nil {
 		return err
 	}
 
@@ -31,8 +31,23 @@ func (c *AlexaRequestEnvelope) UnmarshalJSON(data []byte) error {
 	case "LaunchRequest":
 		c.Request = &AlexaLaunchRequest{AlexaBaseRequest: *baseRequest}
 	case "CanFulfillIntentRequest":
+		var canFulfillIntentRequest *AlexaCanFulfillIntentRequest
+		if err := json.Unmarshal(data, &canFulfillIntentRequest); err != nil {
+			return err
+		}
+		c.Request = canFulfillIntentRequest
 	case "IntentRequest":
+		var intentRequest *AlexaIntentRequest
+		if err := json.Unmarshal(data, &intentRequest); err != nil {
+			return err
+		}
+		c.Request = intentRequest
 	case "SessionEndedRequest":
+		var sessionEndedRequest *AlexaSessionEndedRequest
+		if err := json.Unmarshal(data, &sessionEndedRequest); err != nil {
+			return err
+		}
+		c.Request = sessionEndedRequest
 	default:
 		c.Request = baseRequest
 	}
@@ -175,10 +190,21 @@ type AlexaLaunchRequest struct {
 	AlexaBaseRequest
 }
 
+// AlexaCanFulfillIntentRequest - TODO: published skills only
+type AlexaCanFulfillIntentRequest struct {
+	AlexaBaseRequest
+}
+
 type AlexaIntentRequest struct {
 	AlexaBaseRequest
 	DialogState string       `json:"dialogState,omitempty"`
 	Intent      *AlexaIntent `json:"intent"`
+}
+
+type AlexaSessionEndedRequest struct {
+	AlexaBaseRequest
+	Reason string                  `json:"reason"`
+	Error  *AlexaSessionEndedError `json:"error,omitempty"`
 }
 
 type AlexaIntent struct {
@@ -230,19 +256,48 @@ type AlexaSlotValue struct {
 	Values []*AlexaSingleSlotValue `json:"values,omitempty"`
 }
 
+type AlexaSessionEndedError struct {
+	Type    string `json:"type"`
+	Message string `json:"message,omitempty"`
+}
+
 // AlexaResponseEnvelope struct
 type AlexaResponseEnvelope struct {
-	Version  string         `json:"version,omitempty"`
-	Response *AlexaResponse `json:"response,omitempty"`
+	Version           string            `json:"version,omitempty"`
+	SessionAttributes map[string]string `json:"sessionAttributes,omitempty"`
+	Response          *AlexaResponse    `json:"response,omitempty"`
 }
 
 // AlexaResponse struct
 type AlexaResponse struct {
-	OutputSpeeech *AlexaOutputSpeeech `json:"outputSpeech,omitempty"`
+	OutputSpeeech    *AlexaOutputSpeeech `json:"outputSpeech,omitempty"`
+	Card             *AlexaCard          `json:"card,omitempty"`
+	Reprompt         *AlexaReprompt      `json:"reprompt,omitempty"`
+	ShouldEndSession interface{}         `json:"shouldEndSession,omitempty"`
+	Directives       []interface{}       `json:"directives,omitempty"`
 }
 
 // AlexaOutputSpeeech struct
 type AlexaOutputSpeeech struct {
-	Type string `json:"type,omitempty"`
-	Text string `json:"text,omitempty"`
+	Type         string `json:"type"`
+	Text         string `json:"text,omitempty"`
+	SSML         string `json:"ssml,omitempty"`
+	PlayBehavior string `json:"playBehavior,omitempty"`
+}
+
+type AlexaReprompt struct {
+	OutputSpeeech *AlexaOutputSpeeech `json:"outputSpeech"`
+}
+
+type AlexaCard struct {
+	Type    string          `json:"type"`
+	Title   string          `json:"title,omitempty"`
+	Content string          `json:"content,omitempty"`
+	Text    string          `json:"text,omitempty"`
+	Image   *AlexaCardImage `json:"image,omitempty"`
+}
+
+type AlexaCardImage struct {
+	SmallImageUrl string `json:"smallImageUrl,omitempty"`
+	LargeImageUrl string `json:"largeImageUrl,omitempty"`
 }
