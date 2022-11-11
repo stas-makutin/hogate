@@ -6,7 +6,7 @@ import (
 )
 
 func addAmazonAlexaRoutes(router *http.ServeMux) {
-	handleDedicatedRoute(router, routeAmazonAlexaWhistles, http.HandlerFunc(amazonAlexaWhistles))
+	handleDedicatedRoute(router, routeAmazonAlexaWhistles, authorizationHandler(scopeYandexHome)(http.HandlerFunc(amazonAlexaWhistles)))
 }
 
 func amazonAlexaWhistles(w http.ResponseWriter, r *http.Request) {

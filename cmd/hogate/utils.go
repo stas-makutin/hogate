@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type suffixMultiplier struct {
@@ -149,6 +150,17 @@ func parseJSONRequest(v interface{}, w http.ResponseWriter, r *http.Request) boo
 	if err := d.Decode(v); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return false
+	}
+	return true
+}
+
+func parseOptions(options string, accept func(option string) bool) bool {
+	for _, option := range strings.FieldsFunc(options, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
+		if option != "" {
+			if !accept(option) {
+				return false
+			}
+		}
 	}
 	return true
 }

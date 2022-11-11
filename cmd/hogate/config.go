@@ -18,6 +18,7 @@ type Config struct {
 	WorkingDirectory string           `yaml:"workingDir,omitempty"`
 	HTTPServer       HTTPServerConfig `yaml:"httpServer"`
 	Routes           *[]Route         `yaml:"routes"`
+	Assets           []*HTTPAsset     `yaml:"assets,omitempty"`
 	*Authorization   `yaml:"authorization"`
 	*Credentials     `yaml:"credentials"`
 	*YandexHome      `yaml:"yandexHome"`
@@ -76,6 +77,66 @@ type Route struct {
 	RateLimit   string `yaml:"rateLimit,omitempty"`
 	MaxBodySize string `yaml:"maxBodySize,omitempty"`
 	Methods     string `yaml:"methods,omitempty"`
+}
+
+type HTTPAsset struct {
+	Route        string        `yaml:"route,omitempty"`
+	Path         string        `yaml:"path,omitempty"`
+	IndexFiles   []string      `yaml:"indexFiles,omitempty"`
+	Includes     []string      `yaml:"includes,omitempty"`
+	Excludes     []string      `yaml:"excludes,omitempty"`
+	GzipIncludes []string      `yaml:"gzipIncludes,omitempty"`
+	GzipExcludes []string      `yaml:"gzipExcludes,omitempty"`
+	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
+	RateLimit    string        `yaml:"rateLimit,omitempty"`
+}
+
+type HttpAssetFlag byte
+
+const (
+	HAFShowHidden = HttpAssetFlag(1 << iota)
+	HAFDirListing
+	HAFGZipContent
+	HAFFlat
+)
+
+var httpAssetFlagMap = map[string]HttpAssetFlag{
+	"show-hidden": HAFShowHidden,
+	"dir-listing": HAFDirListing,
+	"gzip":        HAFGZipContent,
+	"flat":        HAFFlat,
+}
+
+func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+	var v string
+	unmarshal(&v)
+	*flags = 0
+	parseOptions(v, func(flag string) bool {
+		if fl, ok := httpAssetFlagMap[flag]; ok {
+			*flags |= fl
+			return true
+		}
+		err = fmt.Errorf("unknown flag '%v'", flag)
+		return false
+	})
+	return
+}
+
+func (flags HttpAssetFlag) String() string {
+	var res strings.Builder
+	for s, mask := range httpAssetFlagMap {
+		if (flags & mask) != 0 {
+			if res.Len() > 0 {
+				res.WriteString(",")
+			}
+			res.WriteString(s)
+		}
+	}
+	return res.String()
+}
+
+func (flags HttpAssetFlag) MarshalYAML() (interface{}, error) {
+	return flags.String(), nil
 }
 
 // Authorization struct
@@ -196,12 +257,12 @@ func loadConfig(cfgFile string) error {
 	err := func() error {
 		file, err := os.Open(cfgFile)
 		if err != nil {
-			return fmt.Errorf("Unable to open configuration file: %v", err)
+			return fmt.Errorf("unable to open configuration file: %v", err)
 		}
 		defer file.Close()
 		err = yaml.NewDecoder(file).Decode(&config)
 		if err != nil {
-			return fmt.Errorf("Unable to parse configuration file: %v", err)
+			return fmt.Errorf("unable to parse configuration file: %v", err)
 		}
 		return nil
 	}()
@@ -218,7 +279,7 @@ func loadConfig(cfgFile string) error {
 
 	if config.WorkingDirectory != "" {
 		if err := os.Chdir(config.WorkingDirectory); err != nil {
-			return fmt.Errorf("Unable to change working directory: %v", err)
+			return fmt.Errorf("unable to change working directory: %v", err)
 		}
 	}
 
@@ -235,7 +296,7 @@ func loadConfig(cfgFile string) error {
 		v(ce)
 	}
 	if errStr.Len() > 0 {
-		return fmt.Errorf("The configuration file is invalid:%v", errStr.String())
+		return fmt.Errorf("the configuration file is invalid:%v", errStr.String())
 	}
 	return nil
 }

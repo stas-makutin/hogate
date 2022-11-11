@@ -171,7 +171,7 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 	// create TCP listener
 	netListener, err := net.Listen("tcp", ":"+strconv.Itoa(int(config.HTTPServer.Port)))
 	if err != nil {
-		return fmt.Errorf("Listen on %v port failed: %v", config.HTTPServer.Port, err)
+		return fmt.Errorf("listen on %v port failed: %v", config.HTTPServer.Port, err)
 	}
 	defer netListener.Close()
 
@@ -187,7 +187,7 @@ func (srv *httpServer) start(errorLog *log.Logger) error {
 	}
 
 	if err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("Failed to start HTTP server: %v", err)
+		return fmt.Errorf("failed to start HTTP server: %v", err)
 	}
 	return nil
 }
@@ -202,7 +202,7 @@ func (srv *httpServer) stop() error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Error occured during HTTP server stop: %v", err)
+		return fmt.Errorf("error occured during HTTP server stop: %v", err)
 	}
 	return nil
 }

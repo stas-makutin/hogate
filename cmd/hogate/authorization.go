@@ -39,10 +39,10 @@ const (
 // Valid method
 func (c AuthTokenClaims) Valid() error {
 	if c.Type != authTokenCode && c.Type != authTokenAccess && c.Type != authTokenRefresh {
-		return fmt.Errorf("Unknown Type")
+		return fmt.Errorf("unknown Type")
 	}
 	if c.ExpiresAt > 0 && c.ExpiresAt < time.Now().UTC().Unix() {
-		return fmt.Errorf("Expired")
+		return fmt.Errorf("expired")
 	}
 	return nil
 }

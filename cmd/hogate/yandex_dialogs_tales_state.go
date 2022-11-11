@@ -112,7 +112,7 @@ func serializeState(w io.Writer, s interface{}) (err error) {
 					}
 				}
 			} else {
-				err = fmt.Errorf("Number of items %d is greater than %d", l, math.MaxUint32)
+				err = fmt.Errorf("number of items %d is greater than %d", l, math.MaxUint32)
 			}
 		}
 	case yandexDialogsTalesSlice:

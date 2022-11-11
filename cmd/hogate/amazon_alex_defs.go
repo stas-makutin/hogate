@@ -2,6 +2,85 @@ package main
 
 import "encoding/json"
 
+// Built-in intents
+const (
+	AMAZON_YesIntent         = "AMAZON.YesIntent"
+	AMAZON_NoIntent          = "AMAZON.NoIntent"
+	AMAZON_CancelIntent      = "AMAZON.CancelIntent"
+	AMAZON_StopIntent        = "AMAZON.StopIntent"
+	AMAZON_FallbackIntent    = "AMAZON.FallbackIntent"
+	AMAZON_HelpIntent        = "AMAZON.HelpIntent"
+	AMAZON_SelectIntent      = "AMAZON.SelectIntent"
+	AMAZON_SendToPhoneIntent = "AMAZON.SendToPhoneIntent"
+	AMAZON_LoopOffIntent     = "AMAZON.LoopOffIntent"
+	AMAZON_LoopOnIntent      = "AMAZON.LoopOnIntent"
+	AMAZON_NextIntent        = "AMAZON.NextIntent"
+	AMAZON_PauseIntent       = "AMAZON.PauseIntent"
+	AMAZON_PreviousIntent    = "AMAZON.PreviousIntent"
+	AMAZON_RepeatIntent      = "AMAZON.RepeatIntent"
+	AMAZON_ResumeIntent      = "AMAZON.ResumeIntent"
+	AMAZON_ShuffleOffIntent  = "AMAZON.ShuffleOffIntent"
+	AMAZON_ShuffleOnIntent   = "AMAZON.ShuffleOnIntent"
+	AMAZON_StartOverIntent   = "AMAZON.StartOverIntent"
+)
+
+// Directive types
+const (
+	ADT_Dialog_Delegate        = "Dialog.Delegate"
+	ADT_Dialog_ElicitSlot      = "Dialog.ElicitSlot"
+	ADT_Dialog_ConfirmSlot     = "Dialog.ConfirmSlot"
+	ADT_Dialog_ConfirmIntent   = "Dialog.ConfirmIntent"
+	ADT_AudioPlayer_Play       = "AudioPlayer.Play"
+	ADT_AudioPlayer_Stop       = "AudioPlayer.Stop"
+	ADT_AudioPlayer_ClearQueue = "AudioPlayer.ClearQueue"
+)
+
+// Error types
+const (
+	// AudioPlayer playback errors
+	ALEXA_MEDIA_ERROR_UNKNOWN               = "MEDIA_ERROR_UNKNOWN"
+	ALEXA_MEDIA_ERROR_INVALID_REQUEST       = "MEDIA_ERROR_INVALID_REQUEST"
+	ALEXA_MEDIA_ERROR_SERVICE_UNAVAILABLE   = "MEDIA_ERROR_SERVICE_UNAVAILABLE"
+	ALEXA_MEDIA_ERROR_INTERNAL_SERVER_ERROR = "MEDIA_ERROR_INTERNAL_SERVER_ERROR"
+	ALEXA_MEDIA_ERROR_INTERNAL_DEVICE_ERROR = "MEDIA_ERROR_INTERNAL_DEVICE_ERROR"
+)
+
+// Directive AudioPlayer.Play playBehavior values
+const (
+	ADT_AudioPlayerPlay_ReplaceAll      = "REPLACE_ALL"
+	ADT_AudioPlayerPlay_Enqueue         = "ENQUEUE"
+	ADT_AudioPlayerPlay_ReplaceEnqueued = "REPLACE_ENQUEUED"
+)
+
+// Directive AudioPlayer.ClearQueue clearBehavior values
+const (
+	ADT_AudioPlayerClearQueue_ClearEnqueue = "CLEAR_ENQUEUED"
+	ADT_AudioPlayerClearQueue_ClearAll     = "CLEAR_ALL"
+)
+
+// Audio stream caption types
+const (
+	AlexaAudioStream_Caption_WEBVTT = "WEBVTT" // https://www.w3.org/TR/webvtt1/
+)
+
+// Image sizes
+const (
+	AlexaImageSize_X_SMALL = "X_SMALL"
+	AlexaImageSize_SMALL   = "SMALL"
+	AlexaImageSize_MEDIUM  = "MEDIUM"
+	AlexaImageSize_LARGE   = "LARGE"
+	AlexaImageSize_X_LARGE = "X_LARGE"
+)
+
+// AudioPlayer Playback Player Activity
+const (
+	AudioPlayerActivity_PLAYING         = "PLAYING"
+	AudioPlayerActivity_PAUSED          = "PAUSED"
+	AudioPlayerActivity_FINISHED        = "FINISHED"
+	AudioPlayerActivity_BUFFER_UNDERRUN = "BUFFER_UNDERRUN"
+	AudioPlayerActivity_IDLE            = "IDLE"
+)
+
 // AlexaRequestEnvelope struct
 type AlexaRequestEnvelope struct {
 	Version string        `json:"version,omitempty"`
@@ -30,12 +109,6 @@ func (c *AlexaRequestEnvelope) UnmarshalJSON(data []byte) error {
 	switch c.Request.Type() {
 	case "LaunchRequest":
 		c.Request = &AlexaLaunchRequest{AlexaBaseRequest: *baseRequest}
-	case "CanFulfillIntentRequest":
-		var canFulfillIntentRequest *AlexaCanFulfillIntentRequest
-		if err := json.Unmarshal(data, &canFulfillIntentRequest); err != nil {
-			return err
-		}
-		c.Request = canFulfillIntentRequest
 	case "IntentRequest":
 		var intentRequest *AlexaIntentRequest
 		if err := json.Unmarshal(data, &intentRequest); err != nil {
@@ -48,6 +121,20 @@ func (c *AlexaRequestEnvelope) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		c.Request = sessionEndedRequest
+	case "AudioPlayer.PlaybackStarted", "AudioPlayer.PlaybackFinished", "AudioPlayer.PlaybackStopped", "AudioPlayer.PlaybackNearlyFinished":
+		var playbackRequest *AlexaAudioPlayerPlaybackRequest
+		if err := json.Unmarshal(data, &playbackRequest); err != nil {
+			return err
+		}
+		c.Request = playbackRequest
+	case "AudioPlayer.PlaybackFailed":
+		var playbackFailedRequest *AlexaAudioPlayerPlaybackFailedRequest
+		if err := json.Unmarshal(data, &playbackFailedRequest); err != nil {
+			return err
+		}
+		c.Request = playbackFailedRequest
+	case "System.ExceptionEncountered":
+
 	default:
 		c.Request = baseRequest
 	}
@@ -190,11 +277,6 @@ type AlexaLaunchRequest struct {
 	AlexaBaseRequest
 }
 
-// AlexaCanFulfillIntentRequest - TODO: published skills only
-type AlexaCanFulfillIntentRequest struct {
-	AlexaBaseRequest
-}
-
 type AlexaIntentRequest struct {
 	AlexaBaseRequest
 	DialogState string       `json:"dialogState,omitempty"`
@@ -203,8 +285,8 @@ type AlexaIntentRequest struct {
 
 type AlexaSessionEndedRequest struct {
 	AlexaBaseRequest
-	Reason string                  `json:"reason"`
-	Error  *AlexaSessionEndedError `json:"error,omitempty"`
+	Reason string      `json:"reason"`
+	Error  *AlexaError `json:"error,omitempty"`
 }
 
 type AlexaIntent struct {
@@ -256,7 +338,7 @@ type AlexaSlotValue struct {
 	Values []*AlexaSingleSlotValue `json:"values,omitempty"`
 }
 
-type AlexaSessionEndedError struct {
+type AlexaError struct {
 	Type    string `json:"type"`
 	Message string `json:"message,omitempty"`
 }
@@ -300,4 +382,100 @@ type AlexaCard struct {
 type AlexaCardImage struct {
 	SmallImageUrl string `json:"smallImageUrl,omitempty"`
 	LargeImageUrl string `json:"largeImageUrl,omitempty"`
+}
+
+type AlexaDirective struct {
+	Type string `json:"type"`
+}
+
+// Supports following Dialog directive types:
+// Dialog.Delegate
+// Dialog.ElicitSlot
+// Dialog.ConfirmSlot
+// Dialog.ConfirmIntent
+type AlexaDirectiveDialog struct {
+	AlexaDirective
+	SlotToElicit  string       `json:"slotToElicit,omitempty"`
+	UpdatedIntent *AlexaIntent `json:"updatedIntent,omitempty"`
+}
+
+type AlexaDirectiveAudioPlayerPlay struct {
+	AlexaDirective
+	PlayBehavior string          `json:"playBehavior"`
+	AudioItem    *AlexaAudioItem `json:"audioItem"`
+}
+
+type AlexaDirectiveAudioPlayerClearQueue struct {
+	AlexaDirective
+	ClearBehavior string `json:"clearBehavior"`
+}
+
+type AlexaAudioItem struct {
+	Stream   *AlexaAudioItemStream   `json:"stream"`
+	Metadata *AlexaAudioItemMetadata `json:"metadata"`
+}
+
+type AlexaAudioItemStream struct {
+	URL                   string                     `json:"url"`
+	Token                 string                     `json:"token"`
+	ExpectedPreviousToken string                     `json:"expectedPreviousToken,omitempty"`
+	OffsetInMilliseconds  uint64                     `json:"offsetInMilliseconds"`
+	CaptionData           *AlexaAudioItemCaptionData `json:"captionData,omitempty"`
+}
+
+type AlexaAudioItemCaptionData struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+type AlexaAudioItemMetadata struct {
+	Title           string      `json:"title,omitempty"`
+	Subtitle        string      `json:"subtitle,omitempty"`
+	Art             *AlexaImage `json:"art,omitempty"`
+	BackgroundImage *AlexaImage `json:"backgroundImage,omitempty"`
+}
+
+type AlexaImage struct {
+	ContentDescription string              `json:"contentDescription,omitempty"`
+	Sources            []*AlexaImageSource `json:"sources"`
+}
+
+type AlexaImageSource struct {
+	URL          string `json:"url"`
+	Size         string `json:"size,omitempty"`
+	WidthPixels  int    `json:"widthPixels,omitempty"`
+	HeightPixels int    `json:"heightPixels,omitempty"`
+}
+
+// Fits:
+// AudioPlayer.PlaybackStarted
+// AudioPlayer.PlaybackFinished
+// AudioPlayer.PlaybackStopped
+// AudioPlayer.PlaybackNearlyFinished
+type AlexaAudioPlayerPlaybackRequest struct {
+	AlexaBaseRequest
+	Token                string `json:"token"`
+	OffsetInMilliseconds uint64 `json:"offsetInMilliseconds"`
+}
+
+type AlexaAudioPlayerPlaybackFailedRequest struct {
+	AlexaAudioPlayerPlaybackRequest
+	Error                *AlexaError         `json:"error,omitempty"`
+	CurrentPlaybackState *AlexaPlaybackState `json:"currentPlaybackState,omitempty"`
+}
+
+type AlexaPlaybackState struct {
+	Token                string `json:"token"`
+	OffsetInMilliseconds uint64 `json:"offsetInMilliseconds"`
+	PlayerActivity       string `json:"playerActivity,omitempty"`
+}
+
+type AlexaSystemExceptionEncounteredRequest struct {
+	AlexaBaseRequest
+	Error *AlexaError          `json:"error,omitempty"`
+	Cause *AlexaExceptionCause `json:"cause,omitempty"`
+}
+
+type AlexaExceptionCause struct {
+	RequestID string `json:"requestId,omitempty"`
 }

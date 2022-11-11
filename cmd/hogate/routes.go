@@ -181,7 +181,7 @@ func parseRouteType(t string) (int, error) {
 	case "yandex-home-action":
 		return routeYandexHomeAction, nil
 	}
-	return 0, fmt.Errorf("Unrecognized route type")
+	return 0, fmt.Errorf("unrecognized route type")
 }
 
 func parseRoutePath(path string) (string, error) {

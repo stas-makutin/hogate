@@ -122,7 +122,7 @@ func parseYandexDialogsTaleType(t string) (ydtFileType, error) {
 	case "joke":
 		return ydtTypeJoke, nil
 	}
-	return 0, fmt.Errorf("Unrecognized tale type")
+	return 0, fmt.Errorf("unrecognized tale type")
 }
 
 func yandexDialogsTales(w http.ResponseWriter, r *http.Request) {
