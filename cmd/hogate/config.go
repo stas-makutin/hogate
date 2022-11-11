@@ -89,6 +89,7 @@ type HTTPAsset struct {
 	GzipExcludes []string      `yaml:"gzipExcludes,omitempty"`
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
 	RateLimit    string        `yaml:"rateLimit,omitempty"`
+	Scope        string        `yaml:"scope,omitempty"`
 }
 
 type HttpAssetFlag byte
@@ -98,6 +99,7 @@ const (
 	HAFDirListing
 	HAFGZipContent
 	HAFFlat
+	HAFAuthenticate
 )
 
 var httpAssetFlagMap = map[string]HttpAssetFlag{
@@ -105,6 +107,7 @@ var httpAssetFlagMap = map[string]HttpAssetFlag{
 	"dir-listing": HAFDirListing,
 	"gzip":        HAFGZipContent,
 	"flat":        HAFFlat,
+	"auth":        HAFAuthenticate,
 }
 
 func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
