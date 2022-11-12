@@ -8,24 +8,13 @@ import (
 
 var credentials credentialsContainer
 
-type scopeType uint16
-
+// known scopes
 const (
-	scopeYandexHome = scopeType(iota)
-	scopeYandexDialogs
+	scopeYandexHome    = "yandex-home"
+	scopeYandexDialogs = "yandex-dialogs"
 )
 
-type scopeSet map[scopeType]struct{}
-
-var scopeNames = map[scopeType]string{
-	scopeYandexHome:    "yandex-home",
-	scopeYandexDialogs: "yandex-dialogs",
-}
-
-var scopeDisplayNames = map[scopeType]string{
-	scopeYandexHome:    "Yandex Home",
-	scopeYandexDialogs: "Yandex Dialogs",
-}
+type scopeSet map[string]struct{}
 
 type userInfo struct {
 	name     string
@@ -72,9 +61,9 @@ func validateCredentialsConfig(cfgError configError) {
 			userError("password cannot be empty")
 		}
 
-		scope, err := parseScope(user.Scope)
-		if err != nil {
-			userError(err.Error())
+		scope := parseScope(user.Scope)
+		if len(scope) == 0 {
+			userError("scope cannot be empty")
 		}
 
 		credentials.users[user.Name] = userInfo{name: user.Name, password: user.Password, scope: scope}
@@ -116,13 +105,13 @@ func validateCredentialsConfig(cfgError configError) {
 				}
 			}
 			if count <= 0 {
-				clientError("At least one non-empty redirectUri must present if authorizationCode option is set.")
+				clientError("at least one non-empty redirectUri must present if authorizationCode option is set")
 			}
 		}
 
-		scope, err := parseScope(client.Scope)
-		if err != nil {
-			clientError(err.Error())
+		scope := parseScope(client.Scope)
+		if len(scope) == 0 {
+			clientError("scope cannot be empty")
 		}
 
 		credentials.clients[client.ID] = clientInfo{
@@ -136,18 +125,13 @@ func validateCredentialsConfig(cfgError configError) {
 	}
 }
 
-func (s scopeType) String() string {
-	if name, ok := scopeNames[s]; ok {
-		return name
+func scopeDisplayName(scope string) string {
+	if config.Scopes != nil {
+		if name, ok := config.Scopes[scope]; ok {
+			return name
+		}
 	}
-	return ""
-}
-
-func (s scopeType) displayName() string {
-	if name, ok := scopeDisplayNames[s]; ok {
-		return name
-	}
-	return ""
+	return scope
 }
 
 func (s scopeSet) test(scope scopeSet, allowEmpty bool) bool {
@@ -184,12 +168,10 @@ func (s scopeSet) same(scope scopeSet) bool {
 func (s scopeSet) String() string {
 	var sb strings.Builder
 	for k := range s {
-		if name := k.String(); name != "" {
-			if sb.Len() > 0 {
-				sb.WriteString(" ")
-			}
-			sb.WriteString(name)
+		if sb.Len() > 0 {
+			sb.WriteString(" ")
 		}
+		sb.WriteString(k)
 	}
 	return sb.String()
 }
@@ -220,7 +202,7 @@ func (c credentialsContainer) verifyUser(userName, password string) (*userInfo, 
 	return nil, false
 }
 
-func newScopeSet(scope ...scopeType) scopeSet {
+func newScopeSet(scope ...string) scopeSet {
 	rv := make(scopeSet)
 	for _, s := range scope {
 		rv[s] = struct{}{}
@@ -228,24 +210,12 @@ func newScopeSet(scope ...scopeType) scopeSet {
 	return rv
 }
 
-func parseScope(scope string) (scopeSet, error) {
+func parseScope(scope string) scopeSet {
 	rv := make(scopeSet)
 	for _, word := range strings.FieldsFunc(scope, func(r rune) bool { return r == ',' || r == ';' || unicode.IsSpace(r) }) {
-		if word != "" {
-			found := false
-			for k, v := range scopeNames {
-				if strings.EqualFold(word, v) {
-					rv[k] = struct{}{}
-					found = true
-					break
-				}
-			}
-			if !found {
-				return nil, fmt.Errorf("unknown scope '%v'", word)
-			}
-		}
+		rv[word] = struct{}{}
 	}
-	return rv, nil
+	return rv
 }
 
 func parseClientOptions(options string) (uint32, error) {

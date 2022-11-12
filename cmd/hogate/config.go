@@ -15,10 +15,11 @@ var configPath string
 
 // Config struct
 type Config struct {
-	WorkingDirectory string           `yaml:"workingDir,omitempty"`
-	HTTPServer       HTTPServerConfig `yaml:"httpServer"`
-	Routes           *[]Route         `yaml:"routes"`
-	Assets           []*HTTPAsset     `yaml:"assets,omitempty"`
+	WorkingDirectory string            `yaml:"workingDir,omitempty"`
+	HTTPServer       HTTPServerConfig  `yaml:"httpServer"`
+	Routes           *[]Route          `yaml:"routes"`
+	Assets           []*HTTPAsset      `yaml:"assets,omitempty"`
+	Scopes           map[string]string `yaml:"scopes,omitempty"`
 	*Authorization   `yaml:"authorization"`
 	*Credentials     `yaml:"credentials"`
 	*YandexHome      `yaml:"yandexHome"`
@@ -99,7 +100,7 @@ const (
 	HAFDirListing
 	HAFGZipContent
 	HAFFlat
-	HAFAuthenticate
+	HAFAuthorize
 )
 
 var httpAssetFlagMap = map[string]HttpAssetFlag{
@@ -107,7 +108,7 @@ var httpAssetFlagMap = map[string]HttpAssetFlag{
 	"dir-listing": HAFDirListing,
 	"gzip":        HAFGZipContent,
 	"flat":        HAFFlat,
-	"auth":        HAFAuthenticate,
+	"authorize":   HAFAuthorize,
 }
 
 func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
@@ -289,6 +290,7 @@ func loadConfig(cfgFile string) error {
 	validate := []func(cfgError configError){
 		validateHTTPServerConfig,
 		validateRouteConfig,
+		validateAssetConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,
 		validateYandexHomeConfig,

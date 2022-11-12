@@ -23,11 +23,11 @@ type httpAuthorizationKey struct{}
 
 // AuthTokenClaims type
 type AuthTokenClaims struct {
-	Type      byte        `json:"t,omitempty"`
-	ClientID  string      `json:"c,omitempty"`
-	UserName  string      `json:"u,omitempty"`
-	Scope     []scopeType `json:"s,omitempty"`
-	ExpiresAt int64       `json:"e,omitempty"`
+	Type      byte     `json:"t,omitempty"`
+	ClientID  string   `json:"c,omitempty"`
+	UserName  string   `json:"u,omitempty"`
+	Scope     []string `json:"s,omitempty"`
+	ExpiresAt int64    `json:"e,omitempty"`
 }
 
 const (
@@ -130,7 +130,7 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 	return nil, err
 }
 
-func testAuthorization(r *http.Request, scope ...scopeType) (int, *AuthTokenClaims) {
+func testAuthorization(r *http.Request, scope ...string) (int, *AuthTokenClaims) {
 	authorization := r.Header.Get("Authorization")
 	if authorization == "" {
 		return http.StatusForbidden, nil
@@ -181,7 +181,7 @@ func httpAuthorization(r *http.Request) *AuthTokenClaims {
 	return nil
 }
 
-func authorizationHandler(scope ...scopeType) func(http.Handler) http.Handler {
+func authorizationHandler(scope ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			status, claim := testAuthorization(r, scope...)

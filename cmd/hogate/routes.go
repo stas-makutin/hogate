@@ -236,6 +236,14 @@ func parseRouteMethods(methods string) ([]string, error) {
 	return rv, nil
 }
 
+func dedicatedRoutePaths() map[string]struct{} {
+	routes := make(map[string]struct{})
+	for _, ri := range dedicatedRoutes {
+		routes[ri.path] = struct{}{}
+	}
+	return routes
+}
+
 func handleDedicatedRoute(router *http.ServeMux, routeType int, handler http.Handler) {
 	ri, ok := dedicatedRoutes[routeType]
 	if !ok {

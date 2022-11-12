@@ -26,11 +26,7 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	parsedScope, err := parseScope(scope)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
+	parsedScope := parseScope(scope)
 
 	// validate clientID, redirectUrl, and scope
 	ci, ok := credentials.client(clientID)
@@ -92,10 +88,7 @@ func oauthAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	var scopeList strings.Builder
 	for k := range parsedScope {
-		name := k.displayName()
-		if name == "" {
-			name = fmt.Sprintf("Code %v", k)
-		}
+		name := scopeDisplayName(k)
 		scopeList.WriteString("<li>")
 		scopeList.WriteString(html.EscapeString(name))
 		scopeList.WriteString("</li>")
@@ -224,7 +217,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 			errorStatus = http.StatusUnauthorized
 		} else if ci.options&coClientCredentials == 0 {
 			errorCode = "unauthorized_client"
-		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) {
+		} else if parsedScope := parseScope(scope); !ci.scope.test(parsedScope, false) {
 			errorCode = "invalid_scope"
 		} else {
 			successfulResponse(clientID, "", parsedScope, ci.options&coRefreshToken != 0)
@@ -253,7 +246,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		} else if originScope := newScopeSet(claims.Scope...); scope == "" {
 			successfulResponse(clientID, claims.UserName, originScope, true)
 			return
-		} else if parsedScope, err := parseScope(scope); err != nil || !ci.scope.test(parsedScope, false) || !parsedScope.same(originScope) {
+		} else if parsedScope := parseScope(scope); !ci.scope.test(parsedScope, false) || !parsedScope.same(originScope) {
 			errorCode = "invalid_scope"
 		} else {
 			successfulResponse(clientID, claims.UserName, originScope, true)
@@ -274,7 +267,7 @@ func oauthToken(w http.ResponseWriter, r *http.Request) {
 		} else if ui, ok := credentials.verifyUser(userName, password); !ok {
 			errorCode = "invalid_user"
 			errorStatus = http.StatusUnauthorized
-		} else if parsedScope, err := parseScope(scope); err != nil || !ui.scope.test(parsedScope, true) {
+		} else if parsedScope := parseScope(scope); !ui.scope.test(parsedScope, true) {
 			errorCode = "invalid_scope"
 		} else {
 			successfulResponse("", userName, parsedScope, false)
