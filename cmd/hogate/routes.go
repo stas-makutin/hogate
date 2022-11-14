@@ -15,6 +15,8 @@ const (
 	routeOAuthAuthorize = iota
 	routeOAuthToken
 
+	routeLogin
+
 	routeYandexHomeHealth
 	routeYandexHomeUnlink
 	routeYandexHomeDevices
@@ -44,6 +46,13 @@ var dedicatedRoutes = map[int]*routeInfo{
 	},
 	routeOAuthToken: {
 		path:        "/token",
+		rateLimit:   20,
+		rateBurst:   5,
+		maxBodySize: 8196,
+		methods:     []string{"GET", "POST", "OPTIONS"},
+	},
+	routeLogin: {
+		path:        "/login",
 		rateLimit:   20,
 		rateBurst:   5,
 		maxBodySize: 8196,

@@ -91,6 +91,7 @@ type HTTPAsset struct {
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
 	RateLimit    string        `yaml:"rateLimit,omitempty"`
 	Scope        string        `yaml:"scope,omitempty"`
+	parsedScope  []string
 }
 
 type HttpAssetFlag byte
@@ -100,15 +101,17 @@ const (
 	HAFDirListing
 	HAFGZipContent
 	HAFFlat
+	HAFAuthenticate
 	HAFAuthorize
 )
 
 var httpAssetFlagMap = map[string]HttpAssetFlag{
-	"show-hidden": HAFShowHidden,
-	"dir-listing": HAFDirListing,
-	"gzip":        HAFGZipContent,
-	"flat":        HAFFlat,
-	"authorize":   HAFAuthorize,
+	"show-hidden":  HAFShowHidden,
+	"dir-listing":  HAFDirListing,
+	"gzip":         HAFGZipContent,
+	"flat":         HAFFlat,
+	"authenticate": HAFAuthenticate,
+	"authorize":    HAFAuthorize,
 }
 
 func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {

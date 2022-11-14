@@ -19,6 +19,8 @@ const generatedAuthTokenSecretSize = 32
 
 var generatedAuthTokenSecretAlphabet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
 
+var authTokenCookie = "hogoken"
+
 type httpAuthorizationKey struct{}
 
 // AuthTokenClaims type
@@ -131,46 +133,55 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 }
 
 func testAuthorization(r *http.Request, scope ...string) (int, *AuthTokenClaims) {
+	token := ""
 	authorization := r.Header.Get("Authorization")
-	if authorization == "" {
+	if strings.HasPrefix(authorization, "Bearer ") {
+		token = authorization[7:]
+	}
+	if token == "" {
+		if cookie, err := r.Cookie(authTokenCookie); err == nil {
+			token = cookie.Value
+		}
+	}
+	if token == "" {
 		return http.StatusForbidden, nil
 	}
-	if strings.HasPrefix(authorization, "Bearer ") {
-		if claim, err := parseAuthToken(authorization[7:]); err == nil && claim.Type == authTokenAccess {
-			valid := true
-			if len(scope) > 0 {
-				var ss scopeSet
-				if len(claim.Scope) > 0 {
-					ss = newScopeSet(claim.Scope...)
-				} else if claim.UserName != "" && claim.ClientID == "" {
-					if ui, ok := credentials.user(claim.UserName); ok {
-						ss = ui.scope
-					} else {
-						valid = false
-					}
+
+	if claim, err := parseAuthToken(token); err == nil && claim.Type == authTokenAccess {
+		valid := true
+		if len(scope) > 0 {
+			var ss scopeSet
+			if len(claim.Scope) > 0 {
+				ss = newScopeSet(claim.Scope...)
+			} else if claim.UserName != "" && claim.ClientID == "" {
+				if ui, ok := credentials.user(claim.UserName); ok {
+					ss = ui.scope
 				} else {
 					valid = false
 				}
-				if valid {
-					for _, v := range scope {
-						if _, ok := ss[v]; !ok {
-							valid = false
-							break
-						}
+			} else {
+				valid = false
+			}
+			if valid {
+				for _, v := range scope {
+					if _, ok := ss[v]; !ok {
+						valid = false
+						break
 					}
 				}
 			}
-			if valid {
-				httpSetLogBulkData(r, logData{
-					"auth": {
-						"u": claim.UserName,
-						"c": claim.ClientID,
-					},
-				})
-				return http.StatusOK, claim
-			}
+		}
+		if valid {
+			httpSetLogBulkData(r, logData{
+				"auth": {
+					"u": claim.UserName,
+					"c": claim.ClientID,
+				},
+			})
+			return http.StatusOK, claim
 		}
 	}
+
 	return http.StatusForbidden, nil
 }
 

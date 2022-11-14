@@ -30,11 +30,21 @@ func addAssetRoutes(router *http.ServeMux) map[string]struct{} {
 	for _, ast := range config.Assets {
 		a := (*asset)(ast)
 		if err := a.valid(routes); err == nil {
+
+			scope := parseScope(a.Scope)
+			a.parsedScope = make([]string, len(scope))
+			i := 0
+			for k := range scope {
+				a.parsedScope[i] = k
+				i++
+			}
+
 			var handler http.Handler = a
 			if (a.Flags & HAFGZipContent) != 0 {
 				handler = gzipHandler(handler, a.GzipIncludes, a.GzipExcludes, gzip.BestCompression)
 			}
 			router.Handle(ast.Route, handler)
+
 			routes[a.Route] = struct{}{}
 		}
 	}
@@ -132,7 +142,30 @@ func (a *asset) dirListing(w http.ResponseWriter, r *http.Request, trgPath strin
 	fmt.Fprintf(w, "</pre>\n")
 }
 
+func (a *asset) authorize(w http.ResponseWriter, r *http.Request) bool {
+	if (a.Flags & (HAFAuthenticate | HAFAuthorize)) == 0 {
+		return false
+	}
+
+	status, _ := testAuthorization(r, a.parsedScope...)
+	if status != http.StatusOK {
+		if (a.Flags & HAFAuthorize) != 0 {
+			targetURL := dedicatedRoutes[routeLogin].path + "?redirect_uri=" + url.QueryEscape(r.URL.String())
+			w.Header().Set("Location", targetURL)
+			w.WriteHeader(http.StatusFound)
+		} else {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+		return true
+	}
+
+	return false
+}
+
 func (a *asset) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if a.authorize(w, r) {
+		return
+	}
 
 	if !strings.HasPrefix(r.URL.Path, a.Route) {
 		http.NotFound(w, r)
