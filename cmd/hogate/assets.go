@@ -150,7 +150,16 @@ func (a *asset) authorize(w http.ResponseWriter, r *http.Request) bool {
 	status, _ := testAuthorization(r, a.parsedScope...)
 	if status != http.StatusOK {
 		if (a.Flags & HAFAuthorize) != 0 {
-			targetURL := dedicatedRoutes[routeLogin].path + "?redirect_uri=" + url.QueryEscape(r.URL.String())
+			targetURL := fmt.Sprintf(
+				"%s?redirect_uri=%s",
+				dedicatedRoutes[routeLogin].path, url.QueryEscape(r.URL.String())
+			)
+			if len(a.parsedScope) > 0 {
+				targetURL = fmt.Sprintf(
+					"%s&scope=%s",
+					targetURL, url.QueryEscape(strings.Join(a.parsedScope, ","))
+				)
+			}
 			w.Header().Set("Location", targetURL)
 			w.WriteHeader(http.StatusFound)
 		} else {
