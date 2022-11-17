@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const DefaultMaxAge = 60 * 60 * 24 * 30 // one month
@@ -88,8 +89,24 @@ Tz31VJfNaBYkjcKJyXvgvuhWnKn9TxYQ7/w+60ycfmBLXJBPfNTPty2lde2x/WozQT96F165
 VfY1YLyZhXwMekT/TPAJg5mtwPlGPovbQJaAv/+wDAD9M0E/6J8J+gH8P5dYJVu9FZ4ZAAAA
 AElFTkSuQmCC">`
 
+var RememberMeMaxAge int = DefaultMaxAge
+
 func addLoginRoute(router *http.ServeMux) {
 	handleDedicatedRoute(router, routeLogin, http.HandlerFunc(login))
+}
+
+func validateLoginConfig(cfgError configError) {
+	if config.Login != nil && config.Login.RememberMaxAge != "" {
+		duration, err := parseTimeDuration(config.Login.RememberMaxAge)
+		if err == nil && duration < 0 {
+			err = fmt.Errorf("negative value not allowed")
+		}
+		if err == nil {
+			RememberMeMaxAge = int(duration / time.Second)
+		} else {
+			cfgError(fmt.Sprintf("login.rememberMaxAge is not valid: %v", err))
+		}
+	}
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -120,11 +137,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 					Value:    accessToken,
 					HttpOnly: true,
 				}
-				if remember == "on" {
-					cookie.MaxAge = DefaultMaxAge
-					if config.Login != nil && config.Login.RememberMaxAge != nil && *config.Login.RememberMaxAge > 0 {
-						cookie.MaxAge = *config.Login.RememberMaxAge
-					}
+				if remember == "on" && RememberMeMaxAge > 0 {
+					cookie.MaxAge = RememberMeMaxAge
 				}
 
 				http.SetCookie(w, cookie)
@@ -141,7 +155,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	title := DefaultLoginTitle
 	header := DefaultLoginHeader
-	addRememberMe := true
 	if config.Login != nil {
 		if config.Login.Title != "" {
 			title = config.Login.Title
@@ -149,13 +162,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 		if config.Login.Header != "" {
 			header = config.Login.Header
 		}
-		if config.Login.RememberMaxAge != nil {
-			addRememberMe = *config.Login.RememberMaxAge > 0
-		}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	io.WriteString(w, login_html(action, title, header, message, addRememberMe))
+	io.WriteString(w, login_html(action, title, header, message, RememberMeMaxAge > 0))
 }
 
 func login_html(action, title, header, message string, addRememberMe bool) string {

@@ -157,7 +157,7 @@ func (flags HttpAssetFlag) MarshalYAML() (interface{}, error) {
 type LoginConfig struct {
 	Title          string `yaml:"title,omitempty"`
 	Header         string `yaml:"header,omitempty"`
-	RememberMaxAge *int   `yaml:"rememberMaxAge,omitempty"`
+	RememberMaxAge string `yaml:"rememberMaxAge,omitempty"`
 }
 
 // Authorization struct
@@ -308,6 +308,7 @@ func loadConfig(cfgFile string) error {
 		validateHTTPServerConfig,
 		validateRouteConfig,
 		validateAssetConfig,
+		validateLoginConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,
 		validateYandexHomeConfig,
