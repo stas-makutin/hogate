@@ -72,16 +72,24 @@ type TLSAcme struct {
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
 
-// Route struct
-type Route struct {
-	Type        string `yaml:"type"`
-	Path        string `yaml:"path,omitempty"`
+// RouteProperties struct
+type RouteProperties struct {
 	RateLimit   string `yaml:"rateLimit,omitempty"`
 	MaxBodySize string `yaml:"maxBodySize,omitempty"`
 	Methods     string `yaml:"methods,omitempty"`
 }
 
+// Route struct
+type Route struct {
+	RouteProperties
+	Type string `yaml:"type"`
+	Path string `yaml:"path,omitempty"`
+}
+
 type HTTPAsset struct {
+	routeBase
+	RouteProperties
+
 	Route        string        `yaml:"route,omitempty"`
 	Path         string        `yaml:"path,omitempty"`
 	IndexFiles   []string      `yaml:"indexFiles,omitempty"`
@@ -90,16 +98,9 @@ type HTTPAsset struct {
 	GzipIncludes []string      `yaml:"gzipIncludes,omitempty"`
 	GzipExcludes []string      `yaml:"gzipExcludes,omitempty"`
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
-	RateLimit    string        `yaml:"rateLimit,omitempty"`
-	MaxBodySize  string        `yaml:"maxBodySize,omitempty"`
-	Methods      string        `yaml:"methods,omitempty"`
 	Scope        string        `yaml:"scope,omitempty"`
 
-	parsedScope       []string
-	parsedRateLimit   float64
-	parsedRateBurst   int
-	parsedMaxBodySize int64
-	parsedMethods     []string
+	parsedScope []string
 }
 
 type HttpAssetFlag byte

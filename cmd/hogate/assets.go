@@ -28,34 +28,7 @@ func validateAssetConfig(cfgError configError) {
 			assetError(err.Error())
 		}
 
-		if a.RateLimit != "" {
-			if rateLimit, rateBurst, err := parseRateLimit(a.RateLimit); err != nil {
-				assetError(fmt.Sprintf("invalid rateLimit value '%v': %v", a.RateLimit, err))
-			} else {
-				a.parsedRateLimit = rateLimit
-				a.parsedRateBurst = rateBurst
-			}
-		}
-
-		if a.MaxBodySize != "" {
-			maxBodySize, err := parseSizeString(a.MaxBodySize)
-			if err == nil && maxBodySize < 0 {
-				err = fmt.Errorf("negative value not allowed")
-			}
-			if err != nil {
-				assetError(fmt.Sprintf("invalid maxBodySize value '%v': %v", a.MaxBodySize, err))
-			} else {
-				a.parsedMaxBodySize = maxBodySize
-			}
-		}
-
-		if a.Methods != "" {
-			if methods, err := parseRouteMethods(a.Methods); err != nil {
-				assetError(fmt.Sprintf("invalid methods value '%v': %v", a.Methods, err))
-			} else {
-				a.parsedMethods = methods
-			}
-		}
+		ast.validateConfig(&ast.routeBase, assetError)
 	}
 }
 
@@ -77,16 +50,7 @@ func addAssetRoutes(router *http.ServeMux) map[string]struct{} {
 			if (a.Flags & HAFGZipContent) != 0 {
 				handler = gzipHandler(handler, a.GzipIncludes, a.GzipExcludes, gzip.BestCompression)
 			}
-			if a.parsedMaxBodySize > 0 {
-				handler = maxBodySizeHandler(a.parsedMaxBodySize)(handler)
-			}
-			if a.parsedRateLimit > 0 {
-				handler = rateLimitHandler(a.parsedRateLimit, a.parsedRateBurst)(handler)
-			}
-			if len(a.parsedMethods) > 0 {
-				handler = limitMethodsHandler(a.parsedMethods)(handler)
-			}
-			router.Handle(ast.Route, handler)
+			router.Handle(ast.Route, ast.applyHandlers(handler))
 
 			routes[a.Route] = struct{}{}
 		}

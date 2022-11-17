@@ -28,88 +28,143 @@ const (
 	routeAmazonAlexaWhistles
 )
 
-type routeInfo struct {
-	path        string
+type routeBase struct {
 	rateLimit   float64
 	rateBurst   int
 	maxBodySize int64
 	methods     []string
 }
 
+type routeInfo struct {
+	routeBase
+	path string
+}
+
 var dedicatedRoutes = map[int]*routeInfo{
 	routeOAuthAuthorize: {
-		path:        "/authorize",
-		rateLimit:   10,
-		rateBurst:   3,
-		maxBodySize: 4096,
-		methods:     []string{"GET", "POST", "OPTIONS"},
+		path: "/authorize",
+		routeBase: routeBase{
+			rateLimit:   10,
+			rateBurst:   3,
+			maxBodySize: 4096,
+			methods:     []string{"GET", "POST", "OPTIONS"},
+		},
 	},
 	routeOAuthToken: {
-		path:        "/token",
-		rateLimit:   20,
-		rateBurst:   5,
-		maxBodySize: 8196,
-		methods:     []string{"GET", "POST", "OPTIONS"},
+		path: "/token",
+		routeBase: routeBase{
+			rateLimit:   20,
+			rateBurst:   5,
+			maxBodySize: 8196,
+			methods:     []string{"GET", "POST", "OPTIONS"},
+		},
 	},
 	routeLogin: {
-		path:        "/login",
-		rateLimit:   5,
-		rateBurst:   2,
-		maxBodySize: 8196,
-		methods:     []string{"GET", "POST", "OPTIONS"},
+		path: "/login",
+		routeBase: routeBase{
+			rateLimit:   5,
+			rateBurst:   2,
+			maxBodySize: 8196,
+			methods:     []string{"GET", "POST", "OPTIONS"},
+		},
 	},
 
 	routeYandexHomeHealth: {
-		path:        "/yandex/home/v1.0",
-		rateLimit:   50,
-		rateBurst:   10,
-		maxBodySize: 256,
-		methods:     []string{"GET", "OPTIONS"},
+		path: "/yandex/home/v1.0",
+		routeBase: routeBase{
+			rateLimit:   50,
+			rateBurst:   10,
+			maxBodySize: 256,
+			methods:     []string{"GET", "OPTIONS"},
+		},
 	},
 	routeYandexHomeUnlink: {
-		path:        "/yandex/home/v1.0/user/unlink",
-		rateLimit:   10,
-		rateBurst:   3,
-		maxBodySize: 256,
-		methods:     []string{"GET", "POST", "OPTIONS"},
+		path: "/yandex/home/v1.0/user/unlink",
+		routeBase: routeBase{
+			rateLimit:   10,
+			rateBurst:   3,
+			maxBodySize: 256,
+			methods:     []string{"GET", "POST", "OPTIONS"},
+		},
 	},
 	routeYandexHomeDevices: {
-		path:        "/yandex/home/v1.0/user/devices",
-		rateLimit:   20,
-		rateBurst:   5,
-		maxBodySize: 256,
-		methods:     []string{"GET", "POST", "OPTIONS"},
+		path: "/yandex/home/v1.0/user/devices",
+		routeBase: routeBase{
+			rateLimit:   20,
+			rateBurst:   5,
+			maxBodySize: 256,
+			methods:     []string{"GET", "POST", "OPTIONS"},
+		},
 	},
 	routeYandexHomeQuery: {
-		path:        "/yandex/home/v1.0/user/devices/query",
-		rateLimit:   0,
-		rateBurst:   0,
-		maxBodySize: 102400,
-		methods:     []string{"POST", "OPTIONS"},
+		path: "/yandex/home/v1.0/user/devices/query",
+		routeBase: routeBase{
+			rateLimit:   0,
+			rateBurst:   0,
+			maxBodySize: 102400,
+			methods:     []string{"POST", "OPTIONS"},
+		},
 	},
 	routeYandexHomeAction: {
-		path:        "/yandex/home/v1.0/user/devices/action",
-		rateLimit:   0,
-		rateBurst:   0,
-		maxBodySize: 512000,
-		methods:     []string{"POST", "OPTIONS"},
+		path: "/yandex/home/v1.0/user/devices/action",
+		routeBase: routeBase{
+			rateLimit:   0,
+			rateBurst:   0,
+			maxBodySize: 512000,
+			methods:     []string{"POST", "OPTIONS"},
+		},
 	},
 
 	routeYandexDialogsTales: {
-		path:        "/yandex/dialogs/tales",
-		rateLimit:   1000,
-		rateBurst:   300,
-		maxBodySize: 102400,
-		methods:     []string{"POST", "OPTIONS"},
+		path: "/yandex/dialogs/tales",
+		routeBase: routeBase{
+			rateLimit:   1000,
+			rateBurst:   300,
+			maxBodySize: 102400,
+			methods:     []string{"POST", "OPTIONS"},
+		},
 	},
 
 	routeAmazonAlexaWhistles: {
-		path:        "/amazon/alexa/whistles",
-		rateLimit:   0,
-		rateBurst:   0,
-		maxBodySize: 102400,
-		methods:     []string{"POST", "OPTIONS"},
+		path: "/amazon/alexa/whistles",
+		routeBase: routeBase{
+			rateLimit:   0,
+			rateBurst:   0,
+			maxBodySize: 102400,
+			methods:     []string{"POST", "OPTIONS"},
+		},
 	},
+}
+
+func (src *RouteProperties) validateConfig(dest *routeBase, reportError func(msg string)) {
+	if src.RateLimit != "" {
+		if rateLimit, rateBurst, err := parseRateLimit(src.RateLimit); err != nil {
+			reportError(fmt.Sprintf("invalid rateLimit value '%v': %v", src.RateLimit, err))
+		} else {
+			dest.rateLimit = rateLimit
+			dest.rateBurst = rateBurst
+		}
+	}
+
+	if src.MaxBodySize != "" {
+		maxBodySize, err := parseSizeString(src.MaxBodySize)
+		if err == nil && maxBodySize < 0 {
+			err = fmt.Errorf("negative value not allowed")
+		}
+		if err != nil {
+			reportError(fmt.Sprintf("invalid maxBodySize value '%v': %v", src.MaxBodySize, err))
+		} else {
+			dest.maxBodySize = maxBodySize
+		}
+	}
+
+	if src.Methods != "" {
+		if methods, err := parseRouteMethods(src.Methods); err != nil {
+			reportError(fmt.Sprintf("invalid methods value '%v': %v", src.Methods, err))
+		} else {
+			dest.methods = methods
+		}
+	}
 }
 
 func validateRouteConfig(cfgError configError) {
@@ -142,34 +197,7 @@ func validateRouteConfig(cfgError configError) {
 			}
 		}
 
-		if route.RateLimit != "" {
-			if rateLimit, rateBurst, err := parseRateLimit(route.RateLimit); err != nil {
-				routeError(fmt.Sprintf("invalid rateLimit value '%v': %v", route.RateLimit, err))
-			} else {
-				ri.rateLimit = rateLimit
-				ri.rateBurst = rateBurst
-			}
-		}
-
-		if route.MaxBodySize != "" {
-			maxBodySize, err := parseSizeString(route.MaxBodySize)
-			if err == nil && maxBodySize < 0 {
-				err = fmt.Errorf("negative value not allowed")
-			}
-			if err != nil {
-				routeError(fmt.Sprintf("invalid maxBodySize value '%v': %v", route.MaxBodySize, err))
-			} else {
-				ri.maxBodySize = maxBodySize
-			}
-		}
-
-		if route.Methods != "" {
-			if methods, err := parseRouteMethods(route.Methods); err != nil {
-				routeError(fmt.Sprintf("invalid methods value '%v': %v", route.Methods, err))
-			} else {
-				ri.methods = methods
-			}
-		}
+		route.validateConfig(&ri.routeBase, routeError)
 	}
 }
 
@@ -303,18 +331,19 @@ func limitMethodsHandler(methods []string) func(http.Handler) http.Handler {
 	}
 }
 
+func (rb *routeBase) applyHandlers(handler http.Handler) http.Handler {
+	if rb.maxBodySize > 0 {
+		handler = maxBodySizeHandler(rb.maxBodySize)(handler)
+	}
+	if rb.rateLimit > 0 {
+		handler = rateLimitHandler(rb.rateLimit, rb.rateBurst)(handler)
+	}
+	if len(rb.methods) > 0 {
+		handler = limitMethodsHandler(rb.methods)(handler)
+	}
+	return handler
+}
+
 func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
-	if ri.maxBodySize > 0 {
-		handler = maxBodySizeHandler(ri.maxBodySize)(handler)
-	}
-
-	if ri.rateLimit > 0 {
-		handler = rateLimitHandler(ri.rateLimit, ri.rateBurst)(handler)
-	}
-
-	if len(ri.methods) > 0 {
-		handler = limitMethodsHandler(ri.methods)(handler)
-	}
-
-	router.Handle(ri.path, handler)
+	router.Handle(ri.path, ri.applyHandlers(handler))
 }

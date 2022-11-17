@@ -113,6 +113,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 	redirectURI := r.URL.Query().Get("redirect_uri")
 	scope := r.URL.Query().Get("scope")
 
+	if redirectURI == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
 	message := ""
 	if r.Method == "POST" {
 		err := r.ParseForm()
