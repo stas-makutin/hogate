@@ -20,6 +20,7 @@ type Config struct {
 	Routes           *[]Route          `yaml:"routes"`
 	Assets           []*HTTPAsset      `yaml:"assets,omitempty"`
 	Scopes           map[string]string `yaml:"scopes,omitempty"`
+	Login            *LoginConfig      `yaml:"login,omitempty"`
 	*Authorization   `yaml:"authorization"`
 	*Credentials     `yaml:"credentials"`
 	*YandexHome      `yaml:"yandexHome"`
@@ -90,8 +91,15 @@ type HTTPAsset struct {
 	GzipExcludes []string      `yaml:"gzipExcludes,omitempty"`
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
 	RateLimit    string        `yaml:"rateLimit,omitempty"`
+	MaxBodySize  string        `yaml:"maxBodySize,omitempty"`
+	Methods      string        `yaml:"methods,omitempty"`
 	Scope        string        `yaml:"scope,omitempty"`
-	parsedScope  []string
+
+	parsedScope       []string
+	parsedRateLimit   float64
+	parsedRateBurst   int
+	parsedMaxBodySize int64
+	parsedMethods     []string
 }
 
 type HttpAssetFlag byte
@@ -144,6 +152,12 @@ func (flags HttpAssetFlag) String() string {
 
 func (flags HttpAssetFlag) MarshalYAML() (interface{}, error) {
 	return flags.String(), nil
+}
+
+type LoginConfig struct {
+	Title          string `yaml:"title,omitempty"`
+	Header         string `yaml:"header,omitempty"`
+	RememberMaxAge *int   `yaml:"rememberMaxAge,omitempty"`
 }
 
 // Authorization struct

@@ -17,10 +17,44 @@ type asset HTTPAsset
 
 func validateAssetConfig(cfgError configError) {
 	routes := dedicatedRoutePaths()
-	for _, ast := range config.Assets {
+	for i, ast := range config.Assets {
+		assetError := func(msg string) {
+			cfgError(fmt.Sprintf("assets, asset %v: %v", i, msg))
+		}
+
 		a := (*asset)(ast)
+
 		if err := a.valid(routes); err != nil {
-			cfgError(err.Error())
+			assetError(err.Error())
+		}
+
+		if a.RateLimit != "" {
+			if rateLimit, rateBurst, err := parseRateLimit(a.RateLimit); err != nil {
+				assetError(fmt.Sprintf("invalid rateLimit value '%v': %v", a.RateLimit, err))
+			} else {
+				a.parsedRateLimit = rateLimit
+				a.parsedRateBurst = rateBurst
+			}
+		}
+
+		if a.MaxBodySize != "" {
+			maxBodySize, err := parseSizeString(a.MaxBodySize)
+			if err == nil && maxBodySize < 0 {
+				err = fmt.Errorf("negative value not allowed")
+			}
+			if err != nil {
+				assetError(fmt.Sprintf("invalid maxBodySize value '%v': %v", a.MaxBodySize, err))
+			} else {
+				a.parsedMaxBodySize = maxBodySize
+			}
+		}
+
+		if a.Methods != "" {
+			if methods, err := parseRouteMethods(a.Methods); err != nil {
+				assetError(fmt.Sprintf("invalid methods value '%v': %v", a.Methods, err))
+			} else {
+				a.parsedMethods = methods
+			}
 		}
 	}
 }
@@ -42,6 +76,15 @@ func addAssetRoutes(router *http.ServeMux) map[string]struct{} {
 			var handler http.Handler = a
 			if (a.Flags & HAFGZipContent) != 0 {
 				handler = gzipHandler(handler, a.GzipIncludes, a.GzipExcludes, gzip.BestCompression)
+			}
+			if a.parsedMaxBodySize > 0 {
+				handler = maxBodySizeHandler(a.parsedMaxBodySize)(handler)
+			}
+			if a.parsedRateLimit > 0 {
+				handler = rateLimitHandler(a.parsedRateLimit, a.parsedRateBurst)(handler)
+			}
+			if len(a.parsedMethods) > 0 {
+				handler = limitMethodsHandler(a.parsedMethods)(handler)
 			}
 			router.Handle(ast.Route, handler)
 
@@ -152,12 +195,12 @@ func (a *asset) authorize(w http.ResponseWriter, r *http.Request) bool {
 		if (a.Flags & HAFAuthorize) != 0 {
 			targetURL := fmt.Sprintf(
 				"%s?redirect_uri=%s",
-				dedicatedRoutes[routeLogin].path, url.QueryEscape(r.URL.String())
+				dedicatedRoutes[routeLogin].path, url.QueryEscape(r.URL.String()),
 			)
 			if len(a.parsedScope) > 0 {
 				targetURL = fmt.Sprintf(
 					"%s&scope=%s",
-					targetURL, url.QueryEscape(strings.Join(a.parsedScope, ","))
+					targetURL, url.QueryEscape(strings.Join(a.parsedScope, ",")),
 				)
 			}
 			w.Header().Set("Location", targetURL)

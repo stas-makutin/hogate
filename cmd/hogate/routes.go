@@ -53,8 +53,8 @@ var dedicatedRoutes = map[int]*routeInfo{
 	},
 	routeLogin: {
 		path:        "/login",
-		rateLimit:   20,
-		rateBurst:   5,
+		rateLimit:   5,
+		rateBurst:   2,
 		maxBodySize: 8196,
 		methods:     []string{"GET", "POST", "OPTIONS"},
 	},
@@ -262,46 +262,58 @@ func handleDedicatedRoute(router *http.ServeMux, routeType int, handler http.Han
 	handleRoute(router, ri, handler)
 }
 
+func maxBodySizeHandler(maxBodySize int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func rateLimitHandler(rateLimit float64, rateBurst int) func(http.Handler) http.Handler {
+	limiter := rate.NewLimiter(rate.Limit(rateLimit), rateBurst)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !limiter.Allow() {
+				http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func limitMethodsHandler(methods []string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			notFound := true
+			for _, method := range methods {
+				if method == r.Method {
+					notFound = false
+					break
+				}
+			}
+			if notFound {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {
 	if ri.maxBodySize > 0 {
-		handler = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				r.Body = http.MaxBytesReader(w, r.Body, ri.maxBodySize)
-				next.ServeHTTP(w, r)
-			})
-		}(handler)
+		handler = maxBodySizeHandler(ri.maxBodySize)(handler)
 	}
 
 	if ri.rateLimit > 0 {
-		limiter := rate.NewLimiter(rate.Limit(ri.rateLimit), ri.rateBurst)
-		handler = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if !limiter.Allow() {
-					http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
-					return
-				}
-				next.ServeHTTP(w, r)
-			})
-		}(handler)
+		handler = rateLimitHandler(ri.rateLimit, ri.rateBurst)(handler)
 	}
 
 	if len(ri.methods) > 0 {
-		handler = func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				notFound := true
-				for _, method := range ri.methods {
-					if method == r.Method {
-						notFound = false
-						break
-					}
-				}
-				if notFound {
-					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-					return
-				}
-				next.ServeHTTP(w, r)
-			})
-		}(handler)
+		handler = limitMethodsHandler(ri.methods)(handler)
 	}
 
 	router.Handle(ri.path, handler)
