@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -29,10 +30,14 @@ const (
 )
 
 type routeBase struct {
-	rateLimit   float64
-	rateBurst   int
-	maxBodySize int64
-	methods     []string
+	rateLimit      float64
+	rateBurst      int
+	maxBodySize    int64
+	methods        []string
+	originAny      bool
+	originIncludes []*regexp.Regexp
+	originExcludes []*regexp.Regexp
+	headers        string
 }
 
 type routeInfo struct {
@@ -165,6 +170,30 @@ func (src *RouteProperties) validateConfig(dest *routeBase, reportError func(msg
 			dest.methods = methods
 		}
 	}
+
+	dest.originAny = false
+	if len(dest.originExcludes) == 0 && len(src.OriginIncludes) == 1 {
+		dest.originAny = src.OriginIncludes[0] == "*"
+	} else {
+		dest.originIncludes = make([]*regexp.Regexp, len(src.OriginIncludes))
+		dest.originExcludes = make([]*regexp.Regexp, len(src.OriginExcludes))
+		for i, val := range src.OriginIncludes {
+			re, err := regexp.Compile(val)
+			if err != nil {
+				reportError(fmt.Sprintf("invalid origin include regex '%v': %v", i, err))
+			}
+			dest.originIncludes[i] = re
+		}
+		for i, val := range src.OriginExcludes {
+			re, err := regexp.Compile(val)
+			if err != nil {
+				reportError(fmt.Sprintf("invalid origin exclude regex '%v': %v", i, err))
+			}
+			dest.originExcludes[i] = re
+		}
+	}
+
+	dest.headers = src.Headers
 }
 
 func validateRouteConfig(cfgError configError) {
@@ -313,6 +342,7 @@ func rateLimitHandler(rateLimit float64, rateBurst int) func(http.Handler) http.
 }
 
 func limitMethodsHandler(methods []string) func(http.Handler) http.Handler {
+	methodsValue := strings.Join(methods, ", ")
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			notFound := true
@@ -324,6 +354,48 @@ func limitMethodsHandler(methods []string) func(http.Handler) http.Handler {
 			}
 			if notFound {
 				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+				return
+			}
+			w.Header().Add("Access-Control-Allow-Methods", methodsValue)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func originMethodHandler(originAny bool, originIncludes, originExcludes []*regexp.Regexp) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if originAny || !skipByPatterns(
+					originIncludes, originExcludes,
+					[]string{origin},
+					func(pattern *regexp.Regexp, value string) bool {
+						return pattern.MatchString(value)
+					},
+				) {
+					w.Header().Add("Access-Control-Allow-Origin", origin)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func allowsHeadersHandler(headers string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Access-Control-Allow-Headers", headers)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func optionsMethodHandler() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "OPTIONS" {
+				http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -341,6 +413,13 @@ func (rb *routeBase) applyHandlers(handler http.Handler) http.Handler {
 	if len(rb.methods) > 0 {
 		handler = limitMethodsHandler(rb.methods)(handler)
 	}
+	if rb.originAny || len(rb.originIncludes) > 0 || len(rb.originExcludes) > 0 {
+		handler = originMethodHandler(rb.originAny, rb.originIncludes, rb.originExcludes)(handler)
+	}
+	if rb.headers != "" {
+		handler = allowsHeadersHandler(rb.headers)(handler)
+	}
+	optionsMethodHandler()(handler)
 	return handler
 }
 

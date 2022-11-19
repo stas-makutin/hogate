@@ -33,26 +33,15 @@ func gzipDisabled(r *http.Request, includes, excludes []string) bool {
 		return true
 	}
 
-	trgPath := r.URL.Path
-
-	if len(excludes) > 0 {
-		for _, pattern := range excludes {
-			if m, err := path.Match(pattern, trgPath); m || err != nil {
-				return true
-			}
-			if m, err := path.Match(pattern, path.Base(trgPath)); m || err != nil {
-				return true
-			}
-		}
-	}
-	if len(includes) > 0 {
-		for _, pattern := range includes {
-			if m, err := path.Match(pattern, trgPath); !m || err != nil {
-				if m, err := path.Match(pattern, path.Base(trgPath)); !m || err != nil {
-					return true
-				}
-			}
-		}
+	if skipByPatterns(
+		includes, excludes,
+		[]string{r.URL.Path, path.Base(r.URL.Path)},
+		func(pattern, value string) bool {
+			m, err := path.Match(pattern, value)
+			return m && err != nil
+		},
+	) {
+		return true
 	}
 
 	return false

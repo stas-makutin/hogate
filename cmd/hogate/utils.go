@@ -164,3 +164,29 @@ func parseOptions(options string, accept func(option string) bool) bool {
 	}
 	return true
 }
+
+func skipByPatterns[T any](includePatterns, excludePatterns []T, values []string, match func(pattern T, value string) bool) bool {
+	if len(values) == 0 {
+		return true
+	}
+	if len(excludePatterns) > 0 {
+		for _, pattern := range excludePatterns {
+			for _, val := range values {
+				if match(pattern, val) {
+					return true
+				}
+			}
+		}
+	}
+	if len(includePatterns) > 0 {
+		for _, pattern := range includePatterns {
+			for _, val := range values {
+				if match(pattern, val) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
+}

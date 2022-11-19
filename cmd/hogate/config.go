@@ -74,9 +74,12 @@ type TLSAcme struct {
 
 // RouteProperties struct
 type RouteProperties struct {
-	RateLimit   string `yaml:"rateLimit,omitempty"`
-	MaxBodySize string `yaml:"maxBodySize,omitempty"`
-	Methods     string `yaml:"methods,omitempty"`
+	RateLimit      string   `yaml:"rateLimit,omitempty"`
+	MaxBodySize    string   `yaml:"maxBodySize,omitempty"`
+	Methods        string   `yaml:"methods,omitempty"`
+	OriginIncludes []string `yaml:"originIncludes,omitempty"`
+	OriginExcludes []string `yaml:"originExcludes,omitempty"`
+	Headers        string   `yaml:"headers,omitempty"`
 }
 
 // Route struct

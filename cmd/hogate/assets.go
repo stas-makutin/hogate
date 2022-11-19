@@ -85,24 +85,15 @@ func (a *asset) checkVisibility(trgPath string) bool {
 			return false
 		}
 	}
-	if len(a.Excludes) > 0 {
-		for _, pattern := range a.Excludes {
-			if m, err := filepath.Match(pattern, trgPath); m || err != nil {
-				return false
-			}
-			if m, err := filepath.Match(pattern, filepath.Base(trgPath)); m || err != nil {
-				return false
-			}
-		}
-	}
-	if len(a.Includes) > 0 {
-		for _, pattern := range a.Includes {
-			if m, err := filepath.Match(pattern, trgPath); !m || err != nil {
-				if m, err := filepath.Match(pattern, filepath.Base(trgPath)); !m || err != nil {
-					return false
-				}
-			}
-		}
+	if skipByPatterns(
+		a.Includes, a.Excludes,
+		[]string{trgPath, filepath.Base(trgPath)},
+		func(pattern, value string) bool {
+			m, err := filepath.Match(pattern, value)
+			return m && err != nil
+		},
+	) {
+		return false
 	}
 	return true
 }
