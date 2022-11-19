@@ -72,8 +72,21 @@ type TLSAcme struct {
 	DirectoryURL  string   `yaml:"directoryUrl,omitempty"` // ACME directory URL, default is Let's Encrypt directory
 }
 
-// RouteProperties struct
-type RouteProperties struct {
+// RouteProperties interface
+type RouteProperties interface {
+	PropRateLimit() string
+	PropMaxBodySize() string
+	PropMethods() string
+	PropOriginIncludes() []string
+	PropOriginExcludes() []string
+	PropHeaders() string
+}
+
+// Route struct
+type Route struct {
+	Type string `yaml:"type"`
+	Path string `yaml:"path,omitempty"`
+
 	RateLimit      string   `yaml:"rateLimit,omitempty"`
 	MaxBodySize    string   `yaml:"maxBodySize,omitempty"`
 	Methods        string   `yaml:"methods,omitempty"`
@@ -82,16 +95,32 @@ type RouteProperties struct {
 	Headers        string   `yaml:"headers,omitempty"`
 }
 
-// Route struct
-type Route struct {
-	RouteProperties
-	Type string `yaml:"type"`
-	Path string `yaml:"path,omitempty"`
+func (r *Route) PropRateLimit() string {
+	return r.RateLimit
+}
+
+func (r *Route) PropMaxBodySize() string {
+	return r.MaxBodySize
+}
+
+func (r *Route) PropMethods() string {
+	return r.Methods
+}
+
+func (r *Route) PropOriginIncludes() []string {
+	return r.OriginIncludes
+}
+
+func (r *Route) PropOriginExcludes() []string {
+	return r.OriginExcludes
+}
+
+func (r *Route) PropHeaders() string {
+	return r.Headers
 }
 
 type HTTPAsset struct {
 	routeBase
-	RouteProperties
 
 	Route        string        `yaml:"route,omitempty"`
 	Path         string        `yaml:"path,omitempty"`
@@ -103,7 +132,38 @@ type HTTPAsset struct {
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
 	Scope        string        `yaml:"scope,omitempty"`
 
+	RateLimit      string   `yaml:"rateLimit,omitempty"`
+	MaxBodySize    string   `yaml:"maxBodySize,omitempty"`
+	Methods        string   `yaml:"methods,omitempty"`
+	OriginIncludes []string `yaml:"originIncludes,omitempty"`
+	OriginExcludes []string `yaml:"originExcludes,omitempty"`
+	Headers        string   `yaml:"headers,omitempty"`
+
 	parsedScope []string
+}
+
+func (a *HTTPAsset) PropRateLimit() string {
+	return a.RateLimit
+}
+
+func (a *HTTPAsset) PropMaxBodySize() string {
+	return a.MaxBodySize
+}
+
+func (a *HTTPAsset) PropMethods() string {
+	return a.Methods
+}
+
+func (a *HTTPAsset) PropOriginIncludes() []string {
+	return a.OriginIncludes
+}
+
+func (a *HTTPAsset) PropOriginExcludes() []string {
+	return a.OriginExcludes
+}
+
+func (a *HTTPAsset) PropHeaders() string {
+	return a.Headers
 }
 
 type HttpAssetFlag byte

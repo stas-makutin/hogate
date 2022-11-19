@@ -28,7 +28,7 @@ func validateAssetConfig(cfgError configError) {
 			assetError(err.Error())
 		}
 
-		ast.validateConfig(&ast.routeBase, assetError)
+		validateRoutePropertiesConfig(ast, &ast.routeBase, assetError)
 	}
 }
 

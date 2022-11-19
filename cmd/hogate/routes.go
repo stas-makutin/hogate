@@ -141,50 +141,51 @@ var dedicatedRoutes = map[int]*routeInfo{
 	},
 }
 
-func (src *RouteProperties) validateConfig(dest *routeBase, reportError func(msg string)) {
-	if src.RateLimit != "" {
-		if rateLimit, rateBurst, err := parseRateLimit(src.RateLimit); err != nil {
-			reportError(fmt.Sprintf("invalid rateLimit value '%v': %v", src.RateLimit, err))
+func validateRoutePropertiesConfig(src RouteProperties, dest *routeBase, reportError func(msg string)) {
+	if src.PropRateLimit() != "" {
+		if rateLimit, rateBurst, err := parseRateLimit(src.PropRateLimit()); err != nil {
+			reportError(fmt.Sprintf("invalid rateLimit value '%v': %v", src.PropRateLimit(), err))
 		} else {
 			dest.rateLimit = rateLimit
 			dest.rateBurst = rateBurst
 		}
 	}
 
-	if src.MaxBodySize != "" {
-		maxBodySize, err := parseSizeString(src.MaxBodySize)
+	if src.PropMaxBodySize() != "" {
+		maxBodySize, err := parseSizeString(src.PropMaxBodySize())
 		if err == nil && maxBodySize < 0 {
 			err = fmt.Errorf("negative value not allowed")
 		}
 		if err != nil {
-			reportError(fmt.Sprintf("invalid maxBodySize value '%v': %v", src.MaxBodySize, err))
+			reportError(fmt.Sprintf("invalid maxBodySize value '%v': %v", src.PropMaxBodySize(), err))
 		} else {
 			dest.maxBodySize = maxBodySize
 		}
 	}
 
-	if src.Methods != "" {
-		if methods, err := parseRouteMethods(src.Methods); err != nil {
-			reportError(fmt.Sprintf("invalid methods value '%v': %v", src.Methods, err))
+	if src.PropMethods() != "" {
+		if methods, err := parseRouteMethods(src.PropMethods()); err != nil {
+			reportError(fmt.Sprintf("invalid methods value '%v': %v", src.PropMethods(), err))
 		} else {
 			dest.methods = methods
 		}
 	}
 
 	dest.originAny = false
-	if len(dest.originExcludes) == 0 && len(src.OriginIncludes) == 1 {
-		dest.originAny = src.OriginIncludes[0] == "*"
-	} else {
-		dest.originIncludes = make([]*regexp.Regexp, len(src.OriginIncludes))
-		dest.originExcludes = make([]*regexp.Regexp, len(src.OriginExcludes))
-		for i, val := range src.OriginIncludes {
+	if len(src.PropOriginExcludes()) == 0 && len(src.PropOriginIncludes()) == 1 {
+		dest.originAny = src.PropOriginIncludes()[0] == "*"
+	}
+	if !dest.originAny {
+		dest.originIncludes = make([]*regexp.Regexp, len(src.PropOriginIncludes()))
+		dest.originExcludes = make([]*regexp.Regexp, len(src.PropOriginExcludes()))
+		for i, val := range src.PropOriginIncludes() {
 			re, err := regexp.Compile(val)
 			if err != nil {
 				reportError(fmt.Sprintf("invalid origin include regex '%v': %v", i, err))
 			}
 			dest.originIncludes[i] = re
 		}
-		for i, val := range src.OriginExcludes {
+		for i, val := range src.PropOriginExcludes() {
 			re, err := regexp.Compile(val)
 			if err != nil {
 				reportError(fmt.Sprintf("invalid origin exclude regex '%v': %v", i, err))
@@ -193,7 +194,7 @@ func (src *RouteProperties) validateConfig(dest *routeBase, reportError func(msg
 		}
 	}
 
-	dest.headers = src.Headers
+	dest.headers = src.PropHeaders()
 }
 
 func validateRouteConfig(cfgError configError) {
@@ -226,7 +227,7 @@ func validateRouteConfig(cfgError configError) {
 			}
 		}
 
-		route.validateConfig(&ri.routeBase, routeError)
+		validateRoutePropertiesConfig(&route, &ri.routeBase, routeError)
 	}
 }
 
