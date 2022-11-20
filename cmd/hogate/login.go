@@ -99,15 +99,17 @@ func addLoginRoute(router *http.ServeMux) {
 }
 
 func validateLoginConfig(cfgError configError) {
-	if config.Login != nil && config.Login.RememberMaxAge != "" {
-		duration, err := parseTimeDuration(config.Login.RememberMaxAge)
-		if err == nil && duration < 0 {
-			err = fmt.Errorf("negative value not allowed")
-		}
-		if err == nil {
-			RememberMeMaxAge = int(duration / time.Second)
-		} else {
-			cfgError(fmt.Sprintf("login.rememberMaxAge is not valid: %v", err))
+	if config.Login != nil {
+		if config.Login.RememberMaxAge != "" {
+			duration, err := parseTimeDuration(config.Login.RememberMaxAge)
+			if err == nil && duration < 0 {
+				err = fmt.Errorf("negative value not allowed")
+			}
+			if err == nil {
+				RememberMeMaxAge = int(duration / time.Second)
+			} else {
+				cfgError(fmt.Sprintf("login.rememberMaxAge is not valid: %v", err))
+			}
 		}
 
 		if config.Login.CookieSameSite != "" {
