@@ -30,14 +30,15 @@ const (
 )
 
 type routeBase struct {
-	rateLimit      float64
-	rateBurst      int
-	maxBodySize    int64
-	methods        []string
-	originAny      bool
-	originIncludes []*regexp.Regexp
-	originExcludes []*regexp.Regexp
-	headers        string
+	rateLimit        float64
+	rateBurst        int
+	maxBodySize      int64
+	methods          []string
+	originAny        bool
+	originIncludes   []*regexp.Regexp
+	originExcludes   []*regexp.Regexp
+	headers          string
+	allowCredentials bool
 }
 
 type routeInfo struct {
@@ -195,6 +196,7 @@ func validateRoutePropertiesConfig(src RouteProperties, dest *routeBase, reportE
 	}
 
 	dest.headers = src.PropHeaders()
+	dest.allowCredentials = src.PropAllowCredentials()
 }
 
 func validateRouteConfig(cfgError configError) {
@@ -392,6 +394,15 @@ func allowsHeadersHandler(headers string) func(http.Handler) http.Handler {
 	}
 }
 
+func allowCredentialsHandler() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Access-Control-Allow-Credentials", "true")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func optionsMethodHandler() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -420,8 +431,10 @@ func (rb *routeBase) applyHandlers(handler http.Handler) http.Handler {
 	if rb.headers != "" {
 		handler = allowsHeadersHandler(rb.headers)(handler)
 	}
-	optionsMethodHandler()(handler)
-	return handler
+	if rb.allowCredentials {
+		handler = allowCredentialsHandler()(handler)
+	}
+	return optionsMethodHandler()(handler)
 }
 
 func handleRoute(router *http.ServeMux, ri *routeInfo, handler http.Handler) {

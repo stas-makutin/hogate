@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -90,6 +91,8 @@ VfY1YLyZhXwMekT/TPAJg5mtwPlGPovbQJaAv/+wDAD9M0E/6J8J+gH8P5dYJVu9FZ4ZAAAA
 AElFTkSuQmCC">`
 
 var RememberMeMaxAge int = DefaultMaxAge
+var TokenCookieSameSite http.SameSite = http.SameSiteDefaultMode
+var TokenCookieSecure bool = false
 
 func addLoginRoute(router *http.ServeMux) {
 	handleDedicatedRoute(router, routeLogin, http.HandlerFunc(login))
@@ -106,6 +109,20 @@ func validateLoginConfig(cfgError configError) {
 		} else {
 			cfgError(fmt.Sprintf("login.rememberMaxAge is not valid: %v", err))
 		}
+
+		if config.Login.CookieSameSite != "" {
+			if strings.EqualFold(config.Login.CookieSameSite, "strict") {
+				TokenCookieSameSite = http.SameSiteStrictMode
+			} else if strings.EqualFold(config.Login.CookieSameSite, "lax") {
+				TokenCookieSameSite = http.SameSiteLaxMode
+			} else if strings.EqualFold(config.Login.CookieSameSite, "none") {
+				TokenCookieSameSite = http.SameSiteNoneMode
+			} else {
+				cfgError(fmt.Sprintf("login.cookieSameSite is not valid: %v", config.Login.CookieSameSite))
+			}
+		}
+
+		TokenCookieSecure = config.Login.CookieSecure
 	}
 }
 
@@ -141,6 +158,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 					Name:     authTokenCookie,
 					Value:    accessToken,
 					HttpOnly: true,
+					Secure:   TokenCookieSecure,
+					SameSite: TokenCookieSameSite,
 				}
 				if remember == "on" && RememberMeMaxAge > 0 {
 					cookie.MaxAge = RememberMeMaxAge

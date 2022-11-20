@@ -80,6 +80,7 @@ type RouteProperties interface {
 	PropOriginIncludes() []string
 	PropOriginExcludes() []string
 	PropHeaders() string
+	PropAllowCredentials() bool
 }
 
 // Route struct
@@ -87,12 +88,13 @@ type Route struct {
 	Type string `yaml:"type"`
 	Path string `yaml:"path,omitempty"`
 
-	RateLimit      string   `yaml:"rateLimit,omitempty"`
-	MaxBodySize    string   `yaml:"maxBodySize,omitempty"`
-	Methods        string   `yaml:"methods,omitempty"`
-	OriginIncludes []string `yaml:"originIncludes,omitempty"`
-	OriginExcludes []string `yaml:"originExcludes,omitempty"`
-	Headers        string   `yaml:"headers,omitempty"`
+	RateLimit        string   `yaml:"rateLimit,omitempty"`
+	MaxBodySize      string   `yaml:"maxBodySize,omitempty"`
+	Methods          string   `yaml:"methods,omitempty"`
+	OriginIncludes   []string `yaml:"originIncludes,omitempty"`
+	OriginExcludes   []string `yaml:"originExcludes,omitempty"`
+	Headers          string   `yaml:"headers,omitempty"`
+	AllowCredentials bool     `yaml:"allowCredentials,omitempty"`
 }
 
 func (r *Route) PropRateLimit() string {
@@ -119,6 +121,10 @@ func (r *Route) PropHeaders() string {
 	return r.Headers
 }
 
+func (r *Route) PropAllowCredentials() bool {
+	return r.AllowCredentials
+}
+
 type HTTPAsset struct {
 	routeBase
 
@@ -132,12 +138,13 @@ type HTTPAsset struct {
 	Flags        HttpAssetFlag `yaml:"flags,omitempty"`
 	Scope        string        `yaml:"scope,omitempty"`
 
-	RateLimit      string   `yaml:"rateLimit,omitempty"`
-	MaxBodySize    string   `yaml:"maxBodySize,omitempty"`
-	Methods        string   `yaml:"methods,omitempty"`
-	OriginIncludes []string `yaml:"originIncludes,omitempty"`
-	OriginExcludes []string `yaml:"originExcludes,omitempty"`
-	Headers        string   `yaml:"headers,omitempty"`
+	RateLimit        string   `yaml:"rateLimit,omitempty"`
+	MaxBodySize      string   `yaml:"maxBodySize,omitempty"`
+	Methods          string   `yaml:"methods,omitempty"`
+	OriginIncludes   []string `yaml:"originIncludes,omitempty"`
+	OriginExcludes   []string `yaml:"originExcludes,omitempty"`
+	Headers          string   `yaml:"headers,omitempty"`
+	AllowCredentials bool     `yaml:"allowCredentials,omitempty"`
 
 	parsedScope []string
 }
@@ -164,6 +171,10 @@ func (a *HTTPAsset) PropOriginExcludes() []string {
 
 func (a *HTTPAsset) PropHeaders() string {
 	return a.Headers
+}
+
+func (a *HTTPAsset) PropAllowCredentials() bool {
+	return a.AllowCredentials
 }
 
 type HttpAssetFlag byte
@@ -222,6 +233,8 @@ type LoginConfig struct {
 	Title          string `yaml:"title,omitempty"`
 	Header         string `yaml:"header,omitempty"`
 	RememberMaxAge string `yaml:"rememberMaxAge,omitempty"`
+	CookieSameSite string `yaml:"cookieSameSite,omitempty"`
+	CookieSecure   bool   `yaml:"cookieSecure,omitempty"`
 }
 
 // Authorization struct
