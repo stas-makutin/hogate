@@ -90,23 +90,38 @@ Tz31VJfNaBYkjcKJyXvgvuhWnKn9TxYQ7/w+60ycfmBLXJBPfNTPty2lde2x/WozQT96F165
 VfY1YLyZhXwMekT/TPAJg5mtwPlGPovbQJaAv/+wDAD9M0E/6J8J+gH8P5dYJVu9FZ4ZAAAA
 AElFTkSuQmCC">`
 
-var RememberMeMaxAge int = DefaultMaxAge
-var TokenCookieSameSite http.SameSite = http.SameSiteDefaultMode
-var TokenCookieSecure bool = false
-
-func addLoginRoute(router *http.ServeMux) {
-	handleDedicatedRoute(router, routeLogin, http.HandlerFunc(login))
+type loginPage struct {
+	title               string
+	header              string
+	rememberMeMaxAge    int
+	tokenCookieSameSite http.SameSite
+	tokenCookieSecure   bool
 }
 
-func validateLoginConfig(cfgError configError) {
+var login *loginPage = &loginPage{
+	title:               DefaultLoginTitle,
+	header:              DefaultLoginHeader,
+	rememberMeMaxAge:    DefaultMaxAge,
+	tokenCookieSameSite: http.SameSiteDefaultMode,
+	tokenCookieSecure:   false,
+}
+
+func (l *loginPage) validateConfig(cfgError configError) {
 	if config.Login != nil {
+		if config.Login.Title != "" {
+			l.title = config.Login.Title
+		}
+		if config.Login.Header != "" {
+			l.header = config.Login.Header
+		}
+
 		if config.Login.RememberMaxAge != "" {
 			duration, err := parseTimeDuration(config.Login.RememberMaxAge)
 			if err == nil && duration < 0 {
 				err = fmt.Errorf("negative value not allowed")
 			}
 			if err == nil {
-				RememberMeMaxAge = int(duration / time.Second)
+				l.rememberMeMaxAge = int(duration / time.Second)
 			} else {
 				cfgError(fmt.Sprintf("login.rememberMaxAge is not valid: %v", err))
 			}
@@ -114,21 +129,25 @@ func validateLoginConfig(cfgError configError) {
 
 		if config.Login.CookieSameSite != "" {
 			if strings.EqualFold(config.Login.CookieSameSite, "strict") {
-				TokenCookieSameSite = http.SameSiteStrictMode
+				l.tokenCookieSameSite = http.SameSiteStrictMode
 			} else if strings.EqualFold(config.Login.CookieSameSite, "lax") {
-				TokenCookieSameSite = http.SameSiteLaxMode
+				l.tokenCookieSameSite = http.SameSiteLaxMode
 			} else if strings.EqualFold(config.Login.CookieSameSite, "none") {
-				TokenCookieSameSite = http.SameSiteNoneMode
+				l.tokenCookieSameSite = http.SameSiteNoneMode
 			} else {
 				cfgError(fmt.Sprintf("login.cookieSameSite is not valid: %v", config.Login.CookieSameSite))
 			}
 		}
 
-		TokenCookieSecure = config.Login.CookieSecure
+		l.tokenCookieSecure = config.Login.CookieSecure
 	}
 }
 
-func login(w http.ResponseWriter, r *http.Request) {
+func (l *loginPage) addRounte(router *http.ServeMux) {
+	handleDedicatedRoute(router, routeLogin, http.HandlerFunc(l.handle))
+}
+
+func (l *loginPage) handle(w http.ResponseWriter, r *http.Request) {
 	redirectURI := r.URL.Query().Get("redirect_uri")
 	scope := r.URL.Query().Get("scope")
 
@@ -160,11 +179,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 					Name:     authTokenCookie,
 					Value:    accessToken,
 					HttpOnly: true,
-					Secure:   TokenCookieSecure,
-					SameSite: TokenCookieSameSite,
+					Secure:   l.tokenCookieSecure,
+					SameSite: l.tokenCookieSameSite,
 				}
-				if remember == "on" && RememberMeMaxAge > 0 {
-					cookie.MaxAge = RememberMeMaxAge
+				if remember == "on" && l.rememberMeMaxAge > 0 {
+					cookie.MaxAge = l.rememberMeMaxAge
 				}
 
 				http.SetCookie(w, cookie)
@@ -179,28 +198,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	action := fmt.Sprintf("?redirect_uri=%s&scope=%s", url.QueryEscape(redirectURI), url.QueryEscape(scope))
 
-	title := DefaultLoginTitle
-	header := DefaultLoginHeader
-	if config.Login != nil {
-		if config.Login.Title != "" {
-			title = config.Login.Title
-		}
-		if config.Login.Header != "" {
-			header = config.Login.Header
-		}
-	}
-
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	io.WriteString(w, login_html(action, title, header, message, RememberMeMaxAge > 0))
+	io.WriteString(w, l.render(action, message))
 }
 
-func login_html(action, title, header, message string, addRememberMe bool) string {
+func (l *loginPage) render(action, message string) string {
 	if message != "" {
 		message = fmt.Sprintf(`<div id="hgl-m">%s</div>`, message)
 	}
 
 	rememberMe := ""
-	if addRememberMe {
+	if l.rememberMeMaxAge > 0 {
 		rememberMe = `<div id="hgl-r">
 					<input type="checkbox" name="remember">
 					<label for="remember">Remember me on this device</label>
@@ -237,6 +245,6 @@ func login_html(action, title, header, message string, addRememberMe bool) strin
 		</div>
 </body>
 </html>`,
-		title, header, action, message, rememberMe,
+		l.title, l.header, action, message, rememberMe,
 	)
 }

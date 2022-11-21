@@ -385,7 +385,7 @@ func loadConfig(cfgFile string) error {
 		validateHTTPServerConfig,
 		validateRouteConfig,
 		validateAssetConfig,
-		validateLoginConfig,
+		login.validateConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,
 		validateYandexHomeConfig,

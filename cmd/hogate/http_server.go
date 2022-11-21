@@ -140,7 +140,7 @@ func (srv *httpServer) init(errorLog *log.Logger) (useTLS bool, tlsCertFile, tls
 
 	router := http.NewServeMux()
 	addOAuthRoutes(router)
-	addLoginRoute(router)
+	login.addRounte(router)
 	addYandexHomeRoutes(router)
 	addYandexDialogsRoutes(router)
 	addAmazonAlexaRoutes(router)
