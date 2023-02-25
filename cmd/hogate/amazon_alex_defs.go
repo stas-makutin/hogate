@@ -24,6 +24,27 @@ const (
 	AMAZON_StartOverIntent   = "AMAZON.StartOverIntent"
 )
 
+// Supported intefaces
+const (
+	Alexa_Interface_AudioPlayer = "AudioPlayer"
+	Alexa_Interface_APL         = "Alexa.Presentation.APL"
+	Alexa_Interface_APLA        = "Alexa.Presentation.APLA"
+	Alexa_Interface_APLT        = "Alexa.Presentation.APLT"
+)
+
+// OutputSpeech types
+const (
+	Alexa_OutputSpeech_PlainText = "PlainText"
+	Alexa_OutputSpeech_SSML      = "SSML"
+)
+
+// OutputSpeech playBehavior values
+const (
+	Alexa_OutputSpeech_ReplaceAll      = "REPLACE_ALL"
+	Alexa_OutputSpeech_Enqueue         = "ENQUEUE"
+	Alexa_OutputSpeech_ReplaceEnqueued = "REPLACE_ENQUEUED"
+)
+
 // Directive types
 const (
 	ADT_Dialog_Delegate        = "Dialog.Delegate"
@@ -33,6 +54,7 @@ const (
 	ADT_AudioPlayer_Play       = "AudioPlayer.Play"
 	ADT_AudioPlayer_Stop       = "AudioPlayer.Stop"
 	ADT_AudioPlayer_ClearQueue = "AudioPlayer.ClearQueue"
+	ADT_APL_RenderDocument     = "Alexa.Presentation.APL.RenderDocument"
 )
 
 // Error types
@@ -81,6 +103,11 @@ const (
 	AudioPlayerActivity_IDLE            = "IDLE"
 )
 
+const (
+	APL_DocumentType_APL  = "APL"
+	APL_DocumentType_Link = "Link"
+)
+
 // AlexaRequestEnvelope struct
 type AlexaRequestEnvelope struct {
 	Version string        `json:"version,omitempty"`
@@ -102,34 +129,34 @@ func (c *AlexaRequestEnvelope) UnmarshalJSON(data []byte) error {
 	}
 
 	var baseRequest *AlexaBaseRequest
-	if err := json.Unmarshal(data, &baseRequest); err != nil {
+	if err := json.Unmarshal(env.Request, &baseRequest); err != nil {
 		return err
 	}
 
-	switch c.Request.Type() {
+	switch baseRequest.Type() {
 	case "LaunchRequest":
 		c.Request = &AlexaLaunchRequest{AlexaBaseRequest: *baseRequest}
 	case "IntentRequest":
 		var intentRequest *AlexaIntentRequest
-		if err := json.Unmarshal(data, &intentRequest); err != nil {
+		if err := json.Unmarshal(env.Request, &intentRequest); err != nil {
 			return err
 		}
 		c.Request = intentRequest
 	case "SessionEndedRequest":
 		var sessionEndedRequest *AlexaSessionEndedRequest
-		if err := json.Unmarshal(data, &sessionEndedRequest); err != nil {
+		if err := json.Unmarshal(env.Request, &sessionEndedRequest); err != nil {
 			return err
 		}
 		c.Request = sessionEndedRequest
 	case "AudioPlayer.PlaybackStarted", "AudioPlayer.PlaybackFinished", "AudioPlayer.PlaybackStopped", "AudioPlayer.PlaybackNearlyFinished":
 		var playbackRequest *AlexaAudioPlayerPlaybackRequest
-		if err := json.Unmarshal(data, &playbackRequest); err != nil {
+		if err := json.Unmarshal(env.Request, &playbackRequest); err != nil {
 			return err
 		}
 		c.Request = playbackRequest
 	case "AudioPlayer.PlaybackFailed":
 		var playbackFailedRequest *AlexaAudioPlayerPlaybackFailedRequest
-		if err := json.Unmarshal(data, &playbackFailedRequest); err != nil {
+		if err := json.Unmarshal(env.Request, &playbackFailedRequest); err != nil {
 			return err
 		}
 		c.Request = playbackFailedRequest
@@ -478,4 +505,14 @@ type AlexaSystemExceptionEncounteredRequest struct {
 
 type AlexaExceptionCause struct {
 	RequestID string `json:"requestId,omitempty"`
+}
+
+// APL
+
+type AlexaDirectiveRenderDocument struct {
+	AlexaDirective
+	Token       string                     `json:"token"`
+	Document    json.RawMessage            `json:"document"`
+	Sources     map[string]json.RawMessage `json:"sources,omitempty"`
+	Datasources map[string]json.RawMessage `json:"datasources,omitempty"`
 }

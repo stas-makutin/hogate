@@ -15,17 +15,18 @@ var configPath string
 
 // Config struct
 type Config struct {
-	WorkingDirectory string            `yaml:"workingDir,omitempty"`
-	HTTPServer       HTTPServerConfig  `yaml:"httpServer"`
-	Routes           *[]Route          `yaml:"routes"`
-	Assets           []*HTTPAsset      `yaml:"assets,omitempty"`
-	Scopes           map[string]string `yaml:"scopes,omitempty"`
-	Login            *LoginConfig      `yaml:"login,omitempty"`
-	*Authorization   `yaml:"authorization"`
-	*Credentials     `yaml:"credentials"`
-	*YandexHome      `yaml:"yandexHome"`
-	*YandexDialogs   `yaml:"yandexDialogs"`
-	*ZwCmd           `yaml:"zwCmd"`
+	WorkingDirectory  string            `yaml:"workingDir,omitempty"`
+	HTTPServer        HTTPServerConfig  `yaml:"httpServer"`
+	Routes            *[]Route          `yaml:"routes"`
+	Assets            []*HTTPAsset      `yaml:"assets,omitempty"`
+	Scopes            map[string]string `yaml:"scopes,omitempty"`
+	Login             *LoginConfig      `yaml:"login,omitempty"`
+	*Authorization    `yaml:"authorization"`
+	*Credentials      `yaml:"credentials"`
+	*YandexHome       `yaml:"yandexHome"`
+	*YandexDialogs    `yaml:"yandexDialogs"`
+	*ZwCmd            `yaml:"zwCmd"`
+	*AlexaHomeConnect `yaml:"alexaHomeConnect"`
 }
 
 // HTTPServerConfig struct
@@ -349,6 +350,11 @@ type ZwCmd struct {
 	Timeout int    `yaml:"timeout,omitempty"`
 }
 
+// AlexaHomeConnect struct
+type AlexaHomeConnect struct {
+	Config string `yaml:"config,omitempty"`
+}
+
 type configError func(msg string)
 
 func loadConfig(cfgFile string) error {
@@ -391,6 +397,7 @@ func loadConfig(cfgFile string) error {
 		validateYandexHomeConfig,
 		validateZwCmdConfig,
 		validateYandexDialogsTalesConfig,
+		validateAlexaHomeConnectConfig,
 	}
 	for _, v := range validate {
 		v(ce)

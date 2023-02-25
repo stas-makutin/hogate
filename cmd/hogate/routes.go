@@ -26,7 +26,7 @@ const (
 
 	routeYandexDialogsTales
 
-	routeAmazonAlexaWhistles
+	routeAmazonAlexaHomeConnect
 )
 
 type routeBase struct {
@@ -131,8 +131,8 @@ var dedicatedRoutes = map[int]*routeInfo{
 		},
 	},
 
-	routeAmazonAlexaWhistles: {
-		path: "/amazon/alexa/whistles",
+	routeAmazonAlexaHomeConnect: {
+		path: "/amazon/alexa/homeconnect",
 		routeBase: routeBase{
 			rateLimit:   0,
 			rateBurst:   0,

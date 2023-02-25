@@ -119,16 +119,19 @@ func acceptAlexaRequest(r *http.Request) *AlexaRequestEnvelope {
 		return nil
 	}
 
-	if request.Request == nil || request.Request.Timestamp() == "" {
-		return nil
-	}
-	ts, err := time.Parse(time.RFC3339, request.Request.Timestamp())
-	if err != nil {
-		return nil
-	}
-	d := time.Since(ts)
-	if d < 0 || d > 150*time.Second {
-		return nil
+	// Request could be nil if only context/session fields are available
+	if request.Request != nil {
+		if request.Request.Timestamp() == "" {
+			return nil
+		}
+		ts, err := time.Parse(time.RFC3339, request.Request.Timestamp())
+		if err != nil {
+			return nil
+		}
+		d := time.Since(ts)
+		if d < 0 || d > 150*time.Second {
+			return nil
+		}
 	}
 
 	return request

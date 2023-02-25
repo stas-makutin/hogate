@@ -132,6 +132,42 @@ func parseAuthToken(tokenString string) (*AuthTokenClaims, error) {
 	return nil, err
 }
 
+func verifyAuthToken(token string, scope ...string) (bool, *AuthTokenClaims) {
+	claim, err := parseAuthToken(token)
+	if err != nil || claim.Type != authTokenAccess {
+		return false, nil
+	}
+
+	valid := true
+	if len(scope) > 0 {
+		var ss scopeSet
+		if len(claim.Scope) > 0 {
+			ss = newScopeSet(claim.Scope...)
+		} else if claim.UserName != "" && claim.ClientID == "" {
+			if ui, ok := credentials.user(claim.UserName); ok {
+				ss = ui.scope
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+		if valid {
+			for _, v := range scope {
+				if _, ok := ss[v]; !ok {
+					valid = false
+					break
+				}
+			}
+		}
+	}
+
+	if valid {
+		return true, claim
+	}
+	return false, nil
+}
+
 func testAuthorization(r *http.Request, scope ...string) (int, *AuthTokenClaims) {
 	token := ""
 	authorization := r.Header.Get("Authorization")
@@ -147,39 +183,14 @@ func testAuthorization(r *http.Request, scope ...string) (int, *AuthTokenClaims)
 		return http.StatusForbidden, nil
 	}
 
-	if claim, err := parseAuthToken(token); err == nil && claim.Type == authTokenAccess {
-		valid := true
-		if len(scope) > 0 {
-			var ss scopeSet
-			if len(claim.Scope) > 0 {
-				ss = newScopeSet(claim.Scope...)
-			} else if claim.UserName != "" && claim.ClientID == "" {
-				if ui, ok := credentials.user(claim.UserName); ok {
-					ss = ui.scope
-				} else {
-					valid = false
-				}
-			} else {
-				valid = false
-			}
-			if valid {
-				for _, v := range scope {
-					if _, ok := ss[v]; !ok {
-						valid = false
-						break
-					}
-				}
-			}
-		}
-		if valid {
-			httpSetLogBulkData(r, logData{
-				"auth": {
-					"u": claim.UserName,
-					"c": claim.ClientID,
-				},
-			})
-			return http.StatusOK, claim
-		}
+	if valid, claim := verifyAuthToken(token, scope...); valid {
+		httpSetLogBulkData(r, logData{
+			"auth": {
+				"u": claim.UserName,
+				"c": claim.ClientID,
+			},
+		})
+		return http.StatusOK, claim
 	}
 
 	return http.StatusForbidden, nil
