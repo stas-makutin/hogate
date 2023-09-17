@@ -1,3 +1,4 @@
 set GOOS=linux
-go build -o main main.go
-%GOPATH%\bin\build-lambda-zip.exe -output main.zip main
+set GOARCH=arm64
+go build -o bootstrap main.go
+%GOPATH%\bin\build-lambda-zip.exe -output hogatefn.zip bootstrap

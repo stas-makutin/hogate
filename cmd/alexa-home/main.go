@@ -37,6 +37,9 @@ var devicesFriendlyNames = map[string]string{
 	"L-15":  "Landry Light",
 	"L-16":  "Main Bedroom Light",
 	"L-17":  "Small Bedroom Light",
+	"L-18":  "Craft Room Light",
+	"L-19":  "Bathroom Light",
+	"L-20":  "Second Bathroom Light",
 }
 
 // Alexa Smart Home definitions
