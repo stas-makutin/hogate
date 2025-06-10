@@ -346,8 +346,9 @@ type YandexDialogs struct {
 
 // ZwCmd struct
 type ZwCmd struct {
-	Path    string `yaml:"path,omitempty"`
-	Timeout int    `yaml:"timeout,omitempty"`
+	Path         string `yaml:"path,omitempty"`
+	Timeout      int    `yaml:"timeout,omitempty"`
+	Asynchronous bool   `yaml:"asynchronous,omitempty"`
 }
 
 // AlexaHomeConnect struct

@@ -120,7 +120,31 @@ func zwCommand(arg ...string) (retCode int, attributes zwValues) {
 	return
 }
 
+func zwCommandAsync(arg ...string) (retCode int) {
+	retCode = zwSystemError
+
+	if zwCmd == "" {
+		return
+	}
+
+	go func() {
+		zwCommandLock.Lock()
+		defer zwCommandLock.Unlock()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(zwCommandTimeout))
+		defer cancel()
+
+		exec.CommandContext(ctx, zwCmd, append([]string{"--timeout", strconv.Itoa(zwCommandTimeout), "--quiet"}, arg...)...).Run()
+	}()
+
+	retCode = zwSuccess
+	return
+}
+
 func zwBasicSet(nodeID byte, level byte) int {
+	if config.ZwCmd.Asynchronous {
+		return zwCommandAsync("basic", strconv.Itoa(int(nodeID)), strconv.Itoa(int(level)))
+	}
 	code, _ := zwCommand("basic", strconv.Itoa(int(nodeID)), strconv.Itoa(int(level)))
 	return code
 }
