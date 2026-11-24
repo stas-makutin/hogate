@@ -19,6 +19,7 @@ type Config struct {
 	HTTPServer        HTTPServerConfig  `yaml:"httpServer"`
 	Routes            *[]Route          `yaml:"routes"`
 	Assets            []*HTTPAsset      `yaml:"assets,omitempty"`
+	Proxies           []*HTTPProxy      `yaml:"proxies,omitempty"`
 	Scopes            map[string]string `yaml:"scopes,omitempty"`
 	Login             *LoginConfig      `yaml:"login,omitempty"`
 	*Authorization    `yaml:"authorization"`
@@ -178,32 +179,65 @@ func (a *HTTPAsset) PropAllowCredentials() bool {
 	return a.AllowCredentials
 }
 
-type HttpAssetFlag byte
+type HTTPProxy struct {
+	routeBase
 
-const (
-	HAFShowHidden = HttpAssetFlag(1 << iota)
-	HAFDirListing
-	HAFGZipContent
-	HAFFlat
-	HAFAuthenticate
-	HAFAuthorize
-)
+	Route  string        `yaml:"route,omitempty"`
+	Target string        `yaml:"target,omitempty"`
+	Prefix string        `yaml:"prefix,omitempty"`
+	Flags  HttpProxyFlag `yaml:"flags,omitempty"`
+	Scope  string        `yaml:"scope,omitempty"`
 
-var httpAssetFlagMap = map[string]HttpAssetFlag{
-	"show-hidden":  HAFShowHidden,
-	"dir-listing":  HAFDirListing,
-	"gzip":         HAFGZipContent,
-	"flat":         HAFFlat,
-	"authenticate": HAFAuthenticate,
-	"authorize":    HAFAuthorize,
+	RateLimit        string   `yaml:"rateLimit,omitempty"`
+	MaxBodySize      string   `yaml:"maxBodySize,omitempty"`
+	Methods          string   `yaml:"methods,omitempty"`
+	OriginIncludes   []string `yaml:"originIncludes,omitempty"`
+	OriginExcludes   []string `yaml:"originExcludes,omitempty"`
+	Headers          string   `yaml:"headers,omitempty"`
+	AllowCredentials bool     `yaml:"allowCredentials,omitempty"`
+
+	parsedScope    []string
+	preparedPrefix string
 }
 
-func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+func (p *HTTPProxy) PropRateLimit() string {
+	return p.RateLimit
+}
+
+func (p *HTTPProxy) PropMaxBodySize() string {
+	return p.MaxBodySize
+}
+
+func (p *HTTPProxy) PropMethods() string {
+	return p.Methods
+}
+
+func (p *HTTPProxy) PropOriginIncludes() []string {
+	return p.OriginIncludes
+}
+
+func (p *HTTPProxy) PropOriginExcludes() []string {
+	return p.OriginExcludes
+}
+
+func (p *HTTPProxy) PropHeaders() string {
+	return p.Headers
+}
+
+func (p *HTTPProxy) PropAllowCredentials() bool {
+	return p.AllowCredentials
+}
+
+type FlagSet interface {
+	~byte
+}
+
+func unmarshalFlagSetYAML[T FlagSet](flags *T, lookup map[string]T, unmarshal func(interface{}) error) (err error) {
 	var v string
 	unmarshal(&v)
 	*flags = 0
 	parseOptions(v, func(flag string) bool {
-		if fl, ok := httpAssetFlagMap[flag]; ok {
+		if fl, ok := lookup[flag]; ok {
 			*flags |= fl
 			return true
 		}
@@ -211,11 +245,12 @@ func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (er
 		return false
 	})
 	return
+
 }
 
-func (flags HttpAssetFlag) String() string {
+func flagSetString[T FlagSet](flags T, lookup map[string]T) string {
 	var res strings.Builder
-	for s, mask := range httpAssetFlagMap {
+	for s, mask := range lookup {
 		if (flags & mask) != 0 {
 			if res.Len() > 0 {
 				res.WriteString(",")
@@ -226,7 +261,59 @@ func (flags HttpAssetFlag) String() string {
 	return res.String()
 }
 
+const (
+	FlagAuthenticate = 1 << iota
+	FlagAuthorize
+
+	BaseFlagCount = iota
+)
+
+type HttpAssetFlag byte
+
+const (
+	HAFShowHidden = HttpAssetFlag(1 << (iota + BaseFlagCount))
+	HAFDirListing
+	HAFGZipContent
+	HAFFlat
+)
+
+var httpAssetFlagMap = map[string]HttpAssetFlag{
+	"show-hidden":  HAFShowHidden,
+	"dir-listing":  HAFDirListing,
+	"gzip":         HAFGZipContent,
+	"flat":         HAFFlat,
+	"authenticate": FlagAuthenticate,
+	"authorize":    FlagAuthorize,
+}
+
+func (flags *HttpAssetFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+	return unmarshalFlagSetYAML(flags, httpAssetFlagMap, unmarshal)
+}
+
+func (flags HttpAssetFlag) String() string {
+	return flagSetString(flags, httpAssetFlagMap)
+}
+
 func (flags HttpAssetFlag) MarshalYAML() (interface{}, error) {
+	return flags.String(), nil
+}
+
+type HttpProxyFlag byte
+
+var httpProxyFlagMap = map[string]HttpProxyFlag{
+	"authenticate": FlagAuthenticate,
+	"authorize":    FlagAuthorize,
+}
+
+func (flags *HttpProxyFlag) UnmarshalYAML(unmarshal func(interface{}) error) (err error) {
+	return unmarshalFlagSetYAML(flags, httpProxyFlagMap, unmarshal)
+}
+
+func (flags HttpProxyFlag) String() string {
+	return flagSetString(flags, httpProxyFlagMap)
+}
+
+func (flags HttpProxyFlag) MarshalYAML() (interface{}, error) {
 	return flags.String(), nil
 }
 
@@ -392,6 +479,7 @@ func loadConfig(cfgFile string) error {
 		validateHTTPServerConfig,
 		validateRouteConfig,
 		validateAssetConfig,
+		validateProxyConfig,
 		login.validateConfig,
 		validateCredentialsConfig,
 		validateAuthorizationConfig,

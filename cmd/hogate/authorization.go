@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -214,4 +215,33 @@ func authorizationHandler(scope ...string) func(http.Handler) http.Handler {
 			http.Error(w, http.StatusText(status), status)
 		})
 	}
+}
+
+func authorizationHandlerWithFlags[T FlagSet](next http.Handler, flags T, scope ...string) http.Handler {
+	if (flags & (FlagAuthenticate | FlagAuthorize)) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status, claim := testAuthorization(r, scope...)
+		if status == http.StatusOK {
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), httpAuthorizationKey{}, claim)))
+			return
+		}
+		if (flags & FlagAuthorize) != 0 {
+			targetURL := fmt.Sprintf(
+				"%s?redirect_uri=%s",
+				dedicatedRoutes[routeLogin].path, url.QueryEscape(r.URL.String()),
+			)
+			if len(scope) > 0 {
+				targetURL = fmt.Sprintf(
+					"%s&scope=%s",
+					targetURL, url.QueryEscape(strings.Join(scope, ",")),
+				)
+			}
+			w.Header().Set("Location", targetURL)
+			w.WriteHeader(http.StatusFound)
+		} else {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+	})
 }
